@@ -1,0 +1,4 @@
+streamlit
+rdkit
+py3Dmol
+pubchempy 
