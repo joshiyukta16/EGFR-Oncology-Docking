@@ -1,5 +1,5 @@
 import streamlit as st
-import streamlit.components.v1 as components  # Fixes 3Dmol.js rendering
+import streamlit.components.v1 as components
 import py3Dmol
 import pandas as pd
 from docking_utils import (
@@ -47,7 +47,8 @@ with tab1:
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
         
         if run_btn:
-            molblock = smiles_to_3d_molblock(smiles_input)
+            # Pass selected target_variant to calculate binding pocket alignment
+            molblock = smiles_to_3d_molblock(smiles_input, target_variant)
             if molblock:
                 st.session_state["molblock"] = molblock
                 st.session_state["scores"] = get_all_variant_scores(smiles_input)
@@ -73,11 +74,11 @@ with tab1:
         if "molblock" in st.session_state:
             view = py3Dmol.view(width=550, height=450)
             
-            # Render Ligand (Green Sticks)
+            # 1. Render Ligand (Green Carbon Sticks)
             view.addModel(st.session_state["molblock"], "mol")
             view.setStyle({'model': -1}, {'stick': {'colorscheme': 'greenCarbon'}})
             
-            # Render Receptor Backbone (Spectrum Ribbon/Cartoon)
+            # 2. Render Receptor Backbone (Spectrum Ribbon/Cartoon)
             if show_receptor:
                 receptor_data, file_ext = load_receptor_pdb(target_variant)
                 if receptor_data:
@@ -90,7 +91,7 @@ with tab1:
             view.zoomTo()
             html_content = view._make_html()
             
-            # Replaced st.html with components.html to allow 3Dmol.js CDN scripts
+            # Render via components.html to allow 3Dmol.js JavaScript CDN scripts
             components.html(html_content, height=470, width=560)
         else:
             st.info("Click 'Run Virtual Screening & Docking' to view 3D interaction poses.")
@@ -113,3 +114,4 @@ with tab3:
     * **EGFR T790M Mutant**: Gatekeeper mutation causing drug resistance against 1st-generation TKIs.
     * **EGFR L858R Mutant**: Activating point mutation with heightened sensitivity to TKIs.
     """) 
+    

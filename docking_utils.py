@@ -3,6 +3,13 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import pubchempy as pcp
 
+# Binding Pocket Centroid Coordinates (X, Y, Z) for EGFR Kinase Active Sites
+BINDING_POCKET_CENTERS = {
+    "EGFR Wild-Type (1M17)": (22.0, 0.5, 52.5),
+    "EGFR T790M Mutant": (29.8, 8.4, 11.2),
+    "EGFR L858R Mutant": (18.5, 33.2, 24.1)
+}
+
 def fetch_smiles_from_pubchem(drug_name):
     """Fetches canonical SMILES string from PubChem using drug name."""
     try:
@@ -13,15 +20,37 @@ def fetch_smiles_from_pubchem(drug_name):
     except Exception:
         return None
 
-def smiles_to_3d_molblock(smiles_str):
-    """Converts SMILES string into a 3D MolBlock."""
+def smiles_to_3d_molblock(smiles_str, variant_name="EGFR Wild-Type (1M17)"):
+    """Converts SMILES string into a 3D MolBlock translated into the target active site."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
             return None
         mol = Chem.AddHs(mol)
+        
+        # 1. Generate 3D Conformer
         AllChem.EmbedMolecule(mol, randomSeed=42)
         AllChem.MMFFOptimizeMolecule(mol)
+        
+        # 2. Get target active site center coordinates
+        center_x, center_y, center_z = BINDING_POCKET_CENTERS.get(variant_name, (22.0, 0.5, 52.5))
+        
+        # 3. Calculate current ligand centroid
+        conf = mol.GetConformer()
+        num_atoms = mol.GetNumAtoms()
+        cx = sum(conf.GetAtomPosition(i).x for i in range(num_atoms)) / num_atoms
+        cy = sum(conf.GetAtomPosition(i).y for i in range(num_atoms)) / num_atoms
+        cz = sum(conf.GetAtomPosition(i).z for i in range(num_atoms)) / num_atoms
+        
+        # 4. Shift ligand coordinates directly into the receptor binding pocket
+        dx = center_x - cx
+        dy = center_y - cy
+        dz = center_z - cz
+        
+        for i in range(num_atoms):
+            pos = conf.GetAtomPosition(i)
+            conf.SetAtomPosition(i, (pos.x + dx, pos.y + dy, pos.z + dz))
+            
         return Chem.MolToMolBlock(mol)
     except Exception:
         return None
@@ -42,7 +71,6 @@ def get_all_variant_scores(smiles_str):
 
 def load_receptor_pdb(variant_name):
     """Loads processed receptor PDB or PDBQT content from the receptors folder."""
-    # Maps variants to exact filenames in the receptors/ folder (supports both .pdb and .pdbqt)
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdb", 
