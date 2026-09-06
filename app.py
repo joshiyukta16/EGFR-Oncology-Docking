@@ -72,49 +72,43 @@ with tab1:
     if "molblock" in st.session_state:
         view = py3Dmol.view(width=1100, height=520)
         
-        # 1. Add Ligand as Model Index 0
+        # 1. Render Ligand as Model 0 (Green Carbon Sticks)
         view.addModel(st.session_state["molblock"], "mol")
         view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
         
-        # 2. Add Receptor as Model Index 1
+        # 2. Render Receptor Backbone as Model 1 (Spectrum Cartoon)
         if receptor_data:
             fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
             view.addModel(receptor_data, fmt)
             
-            # Base cartoon style for full receptor (Model 1)
+            # Base style for full receptor model (Model 1)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # 3. Highlight Selected Residues directly on Model 1 Cartoon Ribbon
+            # 3. Highlight Selected Residues directly on the Cartoon Ribbon
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
-                    res_num = str(res_label[3:])
+                    res_num = res_label[3:]  # Extract number (e.g. '672' from 'GLY672')
                     
-                    # Color cartoon ribbon segment solid red (No sidechain sticks)
+                    # Color cartoon ribbon segment of Model 1 solid red
                     view.addStyle(
-                        {'model': 1, 'resi': res_num},
+                        {'model': 1, 'resi': str(res_num)},
                         {'cartoon': {'color': 'red'}}
                     )
                     
-                    # Floating 3D Text Label over the ribbon segment
+                    # Add 3D Floating Label anchored to Model 1 ribbon position
                     view.addResidueLabel(
-                        {'model': 1, 'resi': res_num},
+                        {'model': 1, 'resi': str(res_num)},
                         res_label,
                         {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                     )
-                
-                # Keep camera zoomed on the ligand binding pocket (Model 0)
-                view.zoomTo({'model': 0})
-            else:
-                view.zoomTo({'model': 0})
+            
+            # ALWAYS zoom and stay centered on the docked ligand (Model 0)
+            view.zoomTo({'model': 0})
         else:
             view.zoomTo()
             
         html_content = view._make_html()
-        components.html(html_content, height=540, width=1120)
-    else:
-        st.info("Enter ligand SMILES below and click 'Run Virtual Screening & Docking' to generate 3D complex.")
-
-    st.markdown("---")
+        components.html(html_content, height=540, width=1120) 
 
     # --- BOTTOM SECTION: INPUTS, BINDING AFFINITY, & DESCRIPTORS ---
     b_col1, b_col2 = st.columns([1, 1])
