@@ -44,25 +44,32 @@ with tab1:
     
     # Load receptor data first to extract sequence
     receptor_data, file_ext = load_receptor_pdb(target_variant)
-    seq_list, seq_str = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
+    
+    # Get sequence data for options
+    dummy_seq, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
+    res_options = [item["label"] for item in dummy_seq]
 
-    # Expandable Horizontal Receptor Sequence Viewer
-    with st.expander("🔬 View Target Receptor Amino Acid Sequence", expanded=True):
-        if seq_str:
-            st.text_area("Receptor Primary Sequence (1-Letter Code):", value=seq_str, height=70, disabled=True)
-            
-            # Interactive Residue Picker
-            res_options = [item["label"] for item in seq_list]
-            selected_custom_residues = st.multiselect(
-                "Select Residues to Highlight in 3D Structure:",
-                options=res_options,
-                default=[r for r in ["MET793", "LYS745", "THR790", "MET790", "LEU858", "ARG858"] if r in res_options]
+    # Multiselect residue picker
+    selected_custom_residues = st.multiselect(
+        "Select Residues to Highlight in Sequence & 3D Ribbon Structure:",
+        options=res_options,
+        default=[r for r in ["MET793", "LYS745", "THR790", "MET790", "LEU858", "ARG858"] if r in res_options]
+    )
+    
+    selected_nums = [r[3:] for r in selected_custom_residues]
+    seq_list, html_sequence = get_receptor_sequence(receptor_data, selected_nums) if receptor_data else ([], "")
+
+    # Expandable Horizontal HTML Sequence Viewer
+    with st.expander("🔬 View Primary Sequence (Highlighted Residues in Red)", expanded=True):
+        if html_sequence:
+            st.markdown(
+                f'<div style="font-family: monospace; font-size: 14px; line-height: 24px; word-wrap: break-word; background: #f8f9fa; padding: 12px; border-radius: 8px; border: 1px solid #e0e0e0; max-height: 120px; overflow-y: auto;">{html_sequence}</div>',
+                unsafe_allow_html=True
             )
         else:
             st.info("Receptor file not found. Load receptor to extract sequence.")
-            selected_custom_residues = []
 
-    # 3D Visualizer Box across full horizontal width
+    # 3D Visualizer
     if "molblock" in st.session_state:
         view = py3Dmol.view(width=1100, height=500)
         
@@ -74,18 +81,34 @@ with tab1:
         if receptor_data:
             fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
             view.addModel(receptor_data, fmt)
+            
+            # Base style for the full receptor ribbon
             view.setStyle({'model': -1}, {'cartoon': {'color': 'spectrum'}})
             
-            # 3. Highlight Selected Residues in Red/Yellow Sticks
+            # 3. Highlight Selected Residues directly on the Ribbon Backbone (No Sidechains)
             if selected_custom_residues:
-                # Extract numerical residue indices
-                res_nums = [r[3:] for r in selected_custom_residues]
-                view.addStyle(
-                    {'model': -1, 'resi': res_nums},
-                    {'stick': {'colorscheme': 'redCarbon'}, 'cartoon': {}}
-                )
+                for res_label in selected_custom_residues:
+                    res_num = res_label[3:]
+                    
+                    # Color only the cartoon ribbon segment red
+                    view.addStyle(
+                        {'model': -1, 'resi': res_num},
+                        {'cartoon': {'color': 'red'}}
+                    )
+                    
+                    # Add 3D Floating Label over the ribbon segment
+                    view.addResidueLabel(
+                        {'resi': res_num},
+                        {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.8}
+                    )
                 
-        view.zoomTo()
+                # Center and focus camera on highlighted ribbon segments
+                view.zoomTo({'resi': selected_nums})
+            else:
+                view.zoomTo()
+        else:
+            view.zoomTo()
+            
         html_content = view._make_html()
         components.html(html_content, height=520, width=1120)
     else:
@@ -156,5 +179,5 @@ with tab3:
     * **EGFR Wild-Type (1M17)**: Active kinase domain conformation bound to Erlotinib/Gefitinib class[cite: 1].
     * **EGFR T790M Mutant**: Gatekeeper mutation causing drug resistance against 1st-generation TKIs.
     * **EGFR L858R Mutant**: Activating point mutation with heightened sensitivity to TKIs.
-    * **Interactive Sequence Search**: Select any amino acid from the upper panel to highlight its 3D sidechain in red inside the active site.
+    * **Ribbon-Only Highlighting**: Selected amino acid positions directly turn red along the protein ribbon backbone without drawing sidechain atom sticks.
     """) 
