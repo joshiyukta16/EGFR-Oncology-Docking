@@ -4,6 +4,7 @@ import py3Dmol
 import pandas as pd
 from docking_utils import (
     smiles_to_3d_molblock, 
+    generate_standalone_ligand_3d,
     get_all_variant_scores, 
     fetch_smiles_from_pubchem,
     load_receptor_pdb,
@@ -13,24 +14,98 @@ from docking_utils import (
 )
 
 st.set_page_config(page_title="EGFR Molecular Docking Dashboard", layout="wide")
-st.title("EGFR Lung Cancer Molecular Docking Platform")
 
-# Gefitinib Default Sample SMILES
+# Default Sample SMILES (Gefitinib)
 DEFAULT_SMILES = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
-# Session State Initialization
+# Reference Cover Image URLs (Docking / Molecular Interactions)
+COVER_IMAGE_URL = "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=1200&q=80"
+
+# Session State Initializations
 if "docking_ran" not in st.session_state:
     st.session_state["docking_ran"] = False
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = DEFAULT_SMILES
-if "spin_on" not in st.session_state:
-    st.session_state["spin_on"] = False
-if "dark_mode" not in st.session_state:
-    st.session_state["dark_mode"] = False
-if "zoom_factor" not in st.session_state:
-    st.session_state["zoom_factor"] = 1.0
 
-# Sidebar Controls
+# Docking Complex Visualizer State Controls
+if "complex_spin" not in st.session_state:
+    st.session_state["complex_spin"] = False
+if "complex_dark" not in st.session_state:
+    st.session_state["complex_dark"] = False
+if "complex_zoom" not in st.session_state:
+    st.session_state["complex_zoom"] = 1.0
+
+# Standalone Ligand Visualizer State Controls
+if "ligand_spin" not in st.session_state:
+    st.session_state["ligand_spin"] = False
+if "ligand_dark" not in st.session_state:
+    st.session_state["ligand_dark"] = False
+if "ligand_zoom" not in st.session_state:
+    st.session_state["ligand_zoom"] = 1.0
+if "highlight_element" not in st.session_state:
+    st.session_state["highlight_element"] = "ALL"
+
+# ==========================================
+# 1. COVER HERO SECTION WITH SMOOTH SCROLL
+# ==========================================
+st.markdown("""
+    <style>
+        html { scroll-behavior: smooth; }
+        .hero-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+            margin-bottom: 25px;
+        }
+        .hero-title {
+            font-size: 36px;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        .hero-subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="hero-card">', unsafe_allow_html=True)
+hero_col1, hero_col2 = st.columns([1.2, 1])
+
+with hero_col1:
+    st.markdown('<div class="hero-title">EGFR Molecular Docking Dashboard</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="hero-subtitle">Interactive structure-based virtual screening platform targeting '
+        'EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).</div>',
+        unsafe_allow_html=True
+    )
+    
+    # Smooth Scroll Action Button to Main Dashboard
+    st.markdown("""
+        <a href="#dashboard-main" style="text-decoration: none;">
+            <div style="background-color: #ff4b4b; color: white; padding: 14px 28px; border-radius: 8px; 
+                        font-weight: bold; font-size: 16px; text-align: center; display: inline-block; 
+                        box-shadow: 0 4px 10px rgba(255, 75, 75, 0.3);">
+                🚀 Start Docking Analysis
+            </div>
+        </a>
+    """, unsafe_allow_html=True)
+
+with hero_col2:
+    st.image(COVER_IMAGE_URL, caption="Protein–Ligand Structural Interaction Interface", use_container_width=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ==========================================
+# 2. SIDEBAR CONFIGURATION
+# ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -52,6 +127,9 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
+# ==========================================
+# 3. MAIN DASHBOARD TABS
+# ==========================================
 tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
 
 with tab1:
@@ -82,15 +160,14 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # 3D Visualizer Canvas
+    # 3D Docked Complex Visualizer Canvas
     if st.session_state["docking_ran"]:
         molblock = smiles_to_3d_molblock(active_smiles, receptor_data)
         
         if receptor_data and molblock:
-            view = py3Dmol.view(width=1100, height=500)
+            view = py3Dmol.view(width=1100, height=480)
             
-            # Set Background Color
-            bg_color = "#111111" if st.session_state["dark_mode"] else "#ffffff"
+            bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
             # Model 0: Ligand (Green Carbon Sticks)
@@ -102,7 +179,7 @@ with tab1:
             view.addModel(receptor_data, fmt)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # Highlight Selected Residues directly on Cartoon Ribbon
+            # Highlight Selected Residues on Cartoon Ribbon
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = res_label[3:]
@@ -131,49 +208,42 @@ with tab1:
                 """
             )
             
-            # Auto-Spin Control
-            if st.session_state["spin_on"]:
+            if st.session_state["complex_spin"]:
                 view.spin(True)
             else:
                 view.spin(False)
             
-            # Zoom Factor Handling
             view.zoomTo({'model': 0})
-            if st.session_state["zoom_factor"] != 1.0:
-                view.zoom(st.session_state["zoom_factor"])
+            if st.session_state["complex_zoom"] != 1.0:
+                view.zoom(st.session_state["complex_zoom"])
                 
             html_content = view._make_html()
-            components.html(html_content, height=510, width=1120)
+            components.html(html_content, height=490, width=1120)
             
-            # --- BELOW VISUALIZER TOOLBAR ---
-            btn_col1, btn_col2, btn_col3, btn_col4, btn_col5 = st.columns([1.2, 1.2, 1, 1, 1.2])
-            
-            with btn_col1:
-                spin_label = "Pause Spin ⏸️" if st.session_state["spin_on"] else "Toggle Spin 🔄"
-                if st.button(spin_label, use_container_width=True):
-                    st.session_state["spin_on"] = not st.session_state["spin_on"]
+            # --- BELOW COMPLEX VISUALIZER TOOLBAR ---
+            c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
+            with c_btn1:
+                spin_lbl = "Pause Spin ⏸️" if st.session_state["complex_spin"] else "Toggle Spin 🔄"
+                if st.button(spin_lbl, key="c_spin", use_container_width=True):
+                    st.session_state["complex_spin"] = not st.session_state["complex_spin"]
                     st.rerun()
-                    
-            with btn_col2:
-                theme_label = "Switch to Light ☀️" if st.session_state["dark_mode"] else "Switch to Dark 🌙"
-                if st.button(theme_label, use_container_width=True):
-                    st.session_state["dark_mode"] = not st.session_state["dark_mode"]
+            with c_btn2:
+                thm_lbl = "Light Mode ☀️" if st.session_state["complex_dark"] else "Dark Mode 🌙"
+                if st.button(thm_lbl, key="c_dark", use_container_width=True):
+                    st.session_state["complex_dark"] = not st.session_state["complex_dark"]
                     st.rerun()
-                    
-            with btn_col3:
-                if st.button("Zoom In 🔍+", use_container_width=True):
-                    st.session_state["zoom_factor"] *= 1.2
+            with c_btn3:
+                if st.button("Zoom In 🔍+", key="c_zin", use_container_width=True):
+                    st.session_state["complex_zoom"] *= 1.2
                     st.rerun()
-                    
-            with btn_col4:
-                if st.button("Zoom Out 🔍-", use_container_width=True):
-                    st.session_state["zoom_factor"] *= 0.8
+            with c_btn4:
+                if st.button("Zoom Out 🔍-", key="c_zout", use_container_width=True):
+                    st.session_state["complex_zoom"] *= 0.8
                     st.rerun()
-                    
-            with btn_col5:
-                if st.button("Reset View 🎯", use_container_width=True):
-                    st.session_state["zoom_factor"] = 1.0
-                    st.session_state["spin_on"] = False
+            with c_btn5:
+                if st.button("Reset View 🎯", key="c_reset", use_container_width=True):
+                    st.session_state["complex_zoom"] = 1.0
+                    st.session_state["complex_spin"] = False
                     st.rerun()
         else:
             st.error("Error generating 3D complex. Verify structure files and SMILES format.")
@@ -182,33 +252,138 @@ with tab1:
 
     st.markdown("---")
 
-    b_col1, b_col2 = st.columns([1, 1])
+    # ==========================================
+    # 4. LOWER PANEL: LIGAND INPUT & STANDALONE 3D VISUALIZER
+    # ==========================================
+    st.subheader("2. Ligand Input & Standalone 3D Conformer Inspection")
+    
+    l_col1, l_col2 = st.columns([1, 1])
 
-    with b_col1:
-        st.subheader("2. Ligand Input & Processing")
+    with l_col1:
         st.caption("ℹ️ *The default sample SMILES format provided below represents **Gefitinib**.*")
-        smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=100)
+        smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
-        
         if run_btn:
             st.session_state["smiles"] = smiles_input
             st.session_state["docking_ran"] = True
             st.rerun()
 
-        # Binding energy shown strictly after docking is executed
+        # Binding energy metric rendered strictly after running docking
         if st.session_state["docking_ran"]:
             selected_score = compute_dynamic_binding_score(active_smiles, target_variant)
             st.markdown("---")
-            st.subheader("3. Predicted Binding Affinity")
-            st.metric(label=f"Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
+            st.metric(label=f"Predicted Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
 
-    with b_col2:
-        st.subheader("4. Comprehensive Molecular Descriptors")
-        props = calculate_lipinski_properties(active_smiles)
-        if props:
-            df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
-            st.dataframe(df_descriptors, width="stretch", hide_index=True)
+    with l_col2:
+        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer")
+        lig_molblock = generate_standalone_ligand_3d(active_smiles)
+        
+        if lig_molblock:
+            l_view = py3Dmol.view(width=540, height=300)
+            l_bg = "#111111" if st.session_state["ligand_dark"] else "#ffffff"
+            l_view.setBackgroundColor(l_bg)
+            
+            l_view.addModel(lig_molblock, "mol")
+            
+            # Atom Element Color Scheme Filtering
+            if st.session_state["highlight_element"] == "NITROGEN":
+                l_view.setStyle({'elem': 'N'}, {'sphere': {'color': 'blue', 'radius': 0.6}})
+                l_view.setStyle({'elem': 'C'}, {'stick': {'colorscheme': 'greenCarbon'}})
+            elif st.session_state["highlight_element"] == "OXYGEN":
+                l_view.setStyle({'elem': 'O'}, {'sphere': {'color': 'red', 'radius': 0.6}})
+                l_view.setStyle({'elem': 'C'}, {'stick': {'colorscheme': 'greenCarbon'}})
+            elif st.session_state["highlight_element"] == "HALOGEN":
+                l_view.setStyle({'elem': 'Cl'}, {'sphere': {'color': 'green', 'radius': 0.7}})
+                l_view.setStyle({'elem': 'F'}, {'sphere': {'color': 'cyan', 'radius': 0.7}})
+                l_view.setStyle({'elem': 'C'}, {'stick': {'colorscheme': 'greenCarbon'}})
+            else:
+                l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}, 'sphere': {'radius': 0.3}})
+            
+            # Interactive Click Callback on Standalone Ligand Atoms
+            l_view.setClickable(
+                {},
+                True,
+                """
+                function(atom, viewer, event, container) {
+                    if(atom) {
+                        var lbl = (atom.elem || 'Atom') + ' (Idx: ' + atom.serial + ')';
+                        viewer.addLabel(lbl, {position: {x: atom.x, y: atom.y, z: atom.z}, backgroundColor: 'black', fontColor: 'white'});
+                        viewer.render();
+                    }
+                }
+                """
+            )
+            
+            if st.session_state["ligand_spin"]:
+                l_view.spin(True)
+            else:
+                l_view.spin(False)
+                
+            l_view.zoomTo()
+            if st.session_state["ligand_zoom"] != 1.0:
+                l_view.zoom(st.session_state["ligand_zoom"])
+                
+            l_html = l_view._make_html()
+            components.html(l_html, height=310, width=550)
+            
+            # Below Standalone Ligand Action Controls
+            l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
+            with l_btn1:
+                l_spin_lbl = "Pause ⏸️" if st.session_state["ligand_spin"] else "Spin 🔄"
+                if st.button(l_spin_lbl, key="l_spin", use_container_width=True):
+                    st.session_state["ligand_spin"] = not st.session_state["ligand_spin"]
+                    st.rerun()
+            with l_btn2:
+                l_thm_lbl = "Light ☀️" if st.session_state["ligand_dark"] else "Dark 🌙"
+                if st.button(l_thm_lbl, key="l_dark", use_container_width=True):
+                    st.session_state["ligand_dark"] = not st.session_state["ligand_dark"]
+                    st.rerun()
+            with l_btn3:
+                if st.button("In 🔍+", key="l_zin", use_container_width=True):
+                    st.session_state["ligand_zoom"] *= 1.2
+                    st.rerun()
+            with l_btn4:
+                if st.button("Out 🔍-", key="l_zout", use_container_width=True):
+                    st.session_state["ligand_zoom"] *= 0.8
+                    st.rerun()
+            with l_btn5:
+                if st.button("Reset 🎯", key="l_reset", use_container_width=True):
+                    st.session_state["ligand_zoom"] = 1.0
+                    st.session_state["ligand_spin"] = False
+                    st.session_state["highlight_element"] = "ALL"
+                    st.rerun()
+
+            # Functional Element Quick Highlight Filter Badges
+            st.markdown("<small><b>Interactive Element Filter Badges:</b></small>", unsafe_allow_html=True)
+            f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+            with f_col1:
+                if st.button("All Atoms", use_container_width=True):
+                    st.session_state["highlight_element"] = "ALL"
+                    st.rerun()
+            with f_col2:
+                if st.button("Nitrogens (N)", use_container_width=True):
+                    st.session_state["highlight_element"] = "NITROGEN"
+                    st.rerun()
+            with f_col3:
+                if st.button("Oxygens (O)", use_container_width=True):
+                    st.session_state["highlight_element"] = "OXYGEN"
+                    st.rerun()
+            with f_col4:
+                if st.button("Halogens (F/Cl)", use_container_width=True):
+                    st.session_state["highlight_element"] = "HALOGEN"
+                    st.rerun()
+
+    st.markdown("---")
+
+    # ==========================================
+    # 5. LIPINSKI RULE PROPERTIES PANEL BELOW LIGAND VISUALIZER
+    # ==========================================
+    st.subheader("3. Lipinski Rule & Comprehensive Chemical Descriptors")
+    props = calculate_lipinski_properties(active_smiles)
+    if props:
+        df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
+        st.dataframe(df_descriptors, width="stretch", hide_index=True)
 
 with tab2:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
@@ -221,8 +396,8 @@ with tab3:
     st.subheader("Target Structure Metadata & Structural Notes")
     st.markdown("""
     * **EGFR Wild-Type (1M17)**: Represents the active kinase domain conformation bound to 1st-generation TKIs (Erlotinib/Gefitinib).
-    * **EGFR T790M Mutant**: Contains the critical gatekeeper point mutation (Threonine 790 to Methionine), which creates steric hindrance causing TKI drug resistance.
-    * **EGFR L858R Mutant**: Features the activating mutation in exon 21 (Leucine 858 to Arginine), causing constitutive activation of the kinase domain.
+    * **EGFR T790M Mutant**: Contains the critical gatekeeper point mutation (Threonine 790 to Methionine), creating steric hindrance causing TKI drug resistance.
+    * **EGFR L858R Mutant**: Features the activating mutation in exon 21 (Leucine 858 to Arginine), causing constitutive kinase domain activation.
     """)
     
     st.markdown("---")
@@ -232,4 +407,3 @@ with tab3:
         "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
         "specifically for molecular docking purposes."
     ) 
-    

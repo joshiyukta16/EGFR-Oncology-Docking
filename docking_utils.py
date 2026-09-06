@@ -74,8 +74,21 @@ def get_all_variant_scores(smiles_str):
         "EGFR L858R Mutant": compute_dynamic_binding_score(smiles_str, "EGFR L858R Mutant")
     }
 
+def generate_standalone_ligand_3d(smiles_str):
+    """Generates standalone 3D MolBlock for individual ligand visualization."""
+    try:
+        mol = Chem.MolFromSmiles(smiles_str)
+        if mol is None:
+            return None
+        mol = Chem.AddHs(mol)
+        AllChem.EmbedMolecule(mol, randomSeed=42)
+        AllChem.MMFFOptimizeMolecule(mol)
+        return Chem.MolToMolBlock(mol)
+    except Exception:
+        return None
+
 def get_receptor_center(receptor_data):
-    """Calculates the geometric center of the receptor structure in real-time."""
+    """Calculates geometric center of receptor structure in real-time."""
     if not receptor_data:
         return (0.0, 0.0, 0.0)
     x_coords, y_coords, z_coords = [], [], []
