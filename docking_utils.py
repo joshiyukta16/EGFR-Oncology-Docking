@@ -41,15 +41,33 @@ def get_all_variant_scores(smiles_str):
     return scores
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB content from the receptors folder."""
+    """Loads processed receptor PDB or PDBQT content from the receptors folder."""
+    # Maps variants to exact filenames in the receptors/ folder (supports both .pdb and .pdbqt)
     filename_map = {
-        "EGFR Wild-Type (1M17)": "receptors/1M17_wildtype.pdb",
-        "EGFR T790M Mutant": "receptors/T790M_mutant.pdb",
-        "EGFR L858R Mutant": "receptors/L858R_mutant.pdb"
+        "EGFR Wild-Type (1M17)": [
+            "receptors/egfr_receptor_1M17.pdb", 
+            "receptors/egfr_receptor_1M17.pdbqt",
+            "receptors/1M17_wildtype.pdb",
+            "receptors/1M17_wildtype.pdbqt"
+        ],
+        "EGFR T790M Mutant": [
+            "receptors/egfr_receptor_2ITY.pdb", 
+            "receptors/egfr_receptor_2ITY.pdbqt",
+            "receptors/T790M_mutant.pdb",
+            "receptors/T790M_mutant.pdbqt"
+        ],
+        "EGFR L858R Mutant": [
+            "receptors/egfr_receptor_9VOX.pdb", 
+            "receptors/egfr_receptor_9VOX.pdbqt",
+            "receptors/L858R_mutant.pdb",
+            "receptors/L858R_mutant.pdbqt"
+        ] 
     }
     
-    path = filename_map.get(variant_name)
-    if path and os.path.exists(path):
-        with open(path, "r") as f:
-            return f.read()
-    return None 
+    possible_paths = filename_map.get(variant_name, [])
+    for path in possible_paths:
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                return f.read(), path.split(".")[-1]  # Returns (file_content, extension)
+                
+    return None, None 
