@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components  # Fixes 3Dmol.js rendering
 import py3Dmol
 import pandas as pd
 from docking_utils import (
@@ -89,8 +90,8 @@ with tab1:
             view.zoomTo()
             html_content = view._make_html()
             
-            # Updated to st.html to remove deprecation warnings
-            st.html(html_content)
+            # Replaced st.html with components.html to allow 3Dmol.js CDN scripts
+            components.html(html_content, height=470, width=560)
         else:
             st.info("Click 'Run Virtual Screening & Docking' to view 3D interaction poses.")
 
@@ -99,7 +100,6 @@ with tab2:
     if "scores" in st.session_state:
         df_scores = pd.DataFrame(list(st.session_state["scores"].items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
         
-        # Updated width parameter to remove deprecation warning
         st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), width="stretch")
         
         st.bar_chart(df_scores.set_index("EGFR Variant Target"))
