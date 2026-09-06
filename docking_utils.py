@@ -175,7 +175,6 @@ def get_receptor_sequence(receptor_data):
             except Exception:
                 continue
                 
-    # Sort sequence by residue number
     sequence_list.sort(key=lambda x: int(re.sub(r'\D', '', x["res_num"])) if re.sub(r'\D', '', x["res_num"]).isdigit() else 0)
     single_str = "".join([item["single"] for item in sequence_list])
     
