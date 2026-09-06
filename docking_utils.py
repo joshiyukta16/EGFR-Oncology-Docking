@@ -27,7 +27,8 @@ def fetch_smiles_from_pubchem(drug_name):
 def calculate_lipinski_properties(smiles_str):
     try:
         mol = Chem.MolFromSmiles(smiles_str)
-        if mol is None: return None
+        if mol is None: 
+            return None
         return {
             "Molecular Weight (g/mol)": round(Descriptors.MolWt(mol), 2),
             "LogP (Lipophilicity)": round(Crippen.MolLogP(mol), 2),
@@ -38,7 +39,12 @@ def calculate_lipinski_properties(smiles_str):
             "Ring Count": Lipinski.RingCount(mol),
             "Heavy Atom Count": mol.GetNumHeavyAtoms(),
             "Fraction Csp3": round(rdMolDescriptors.CalcFractionCSP3(mol), 2),
-            "Lipinski Violations": sum([Descriptors.MolWt(mol) > 500, Crippen.MolLogP(mol) > 5, Lipinski.NumHDonors(mol) > 5, Lipinski.NumHAcceptors(mol) > 10])
+            "Lipinski Violations": sum([
+                Descriptors.MolWt(mol) > 500, 
+                Crippen.MolLogP(mol) > 5, 
+                Lipinski.NumHDonors(mol) > 5, 
+                Lipinski.NumHAcceptors(mol) > 10
+            ])
         }
     except Exception:
         return None
@@ -46,7 +52,8 @@ def calculate_lipinski_properties(smiles_str):
 def smiles_to_3d_molblock(smiles_str, variant_name="EGFR Wild-Type (1M17)"):
     try:
         mol = Chem.MolFromSmiles(smiles_str)
-        if mol is None: return None
+        if mol is None: 
+            return None
         mol = Chem.AddHs(mol)
         AllChem.EmbedMolecule(mol, randomSeed=42)
         AllChem.MMFFOptimizeMolecule(mol)
@@ -76,9 +83,24 @@ def get_all_variant_scores(smiles_str):
 
 def load_receptor_pdb(variant_name):
     filename_map = {
-        "EGFR Wild-Type (1M17)": ["receptors/egfr_receptor_1M17.pdbqt", "receptors/egfr_receptor_1M17.pdb"],
-        "EGFR T790M Mutant": ["receptors/egfr_receptor_2ITY.pdbqt", "receptors/egfr_receptor_2ITY.pdb"],
-        "EGFR L858R Mutant": ["receptors/egfr_receptor_9VOX.pdbqt", "receptors/egfr_receptor_9VOX.pdb"] 
+        "EGFR Wild-Type (1M17)": [
+            "receptors/egfr_receptor_1M17.pdbqt", 
+            "receptors/egfr_receptor_1M17.pdb",
+            "egfr_receptor_1M17.pdbqt",
+            "egfr_receptor_1M17.pdb"
+        ],
+        "EGFR T790M Mutant": [
+            "receptors/egfr_receptor_2ITY.pdbqt", 
+            "receptors/egfr_receptor_2ITY.pdb",
+            "egfr_receptor_2ITY.pdbqt",
+            "egfr_receptor_2ITY.pdb"
+        ],
+        "EGFR L858R Mutant": [
+            "receptors/egfr_receptor_9VOX.pdbqt", 
+            "receptors/egfr_receptor_9VOX.pdb",
+            "egfr_receptor_9VOX.pdbqt",
+            "egfr_receptor_9VOX.pdb"
+        ] 
     }
     possible_paths = filename_map.get(variant_name, [])
     for path in possible_paths:

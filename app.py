@@ -14,13 +14,13 @@ from docking_utils import (
 st.set_page_config(page_title="EGFR Molecular Docking Dashboard", layout="wide")
 st.title("EGFR Lung Cancer Molecular Docking Platform")
 
-# 1. Initialize Default Session State Variables
+# Session State Setup
 DEFAULT_SMILES = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = DEFAULT_SMILES
 
-# 2. Sidebar Configuration
+# Sidebar
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -39,16 +39,13 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
-# 3. Main Interface Tabs
 tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
 
 with tab1:
     st.subheader("1. Interactive 3D Complex & Sequence Inspection")
     
-    # Load Receptor Data
     receptor_data, file_ext = load_receptor_pdb(target_variant)
     
-    # Extract sequence list for multi-select options
     seq_list, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
     res_options = [item["label"] for item in seq_list]
 
@@ -61,7 +58,6 @@ with tab1:
     selected_nums = [r[3:] for r in selected_custom_residues]
     _, html_sequence = get_receptor_sequence(receptor_data, selected_nums) if receptor_data else ([], "")
 
-    # Expandable Primary Sequence Viewer
     with st.expander("🔬 View Primary Sequence (Highlighted Residues in Red)", expanded=True):
         if html_sequence:
             st.markdown(
@@ -69,54 +65,47 @@ with tab1:
                 unsafe_allow_html=True
             )
         else:
-            st.info("Receptor structure file missing from /receptors folder.")
+            st.info("Receptor structure file missing from receptors folder.")
 
-    # Calculate current 3D molblock for the active SMILES & variant
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     molblock = smiles_to_3d_molblock(active_smiles, target_variant)
 
-    # 4. 3D Visualizer Canvas (Guaranteed to render continuously)
-    if receptor_data and molblock:
+    if molblock:
         view = py3Dmol.view(width=1100, height=520)
         
         # Model 0: Ligand
         view.addModel(molblock, "mol")
         view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
         
-        # Model 1: Receptor Target Structure
-        fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
-        view.addModel(receptor_data, fmt)
-        view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
+        # Model 1: Receptor
+        if receptor_data:
+            fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
+            view.addModel(receptor_data, fmt)
+            view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
+            
+            if selected_custom_residues:
+                for res_label in selected_custom_residues:
+                    res_num = res_label[3:]
+                    view.addStyle(
+                        {'model': 1, 'resi': str(res_num)},
+                        {'cartoon': {'color': 'red'}}
+                    )
+                    view.addResidueLabel(
+                        {'model': 1, 'resi': str(res_num)},
+                        res_label,
+                        {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
+                    )
         
-        # Highlight selected residues on the cartoon ribbon backbone
-        if selected_custom_residues:
-            for res_label in selected_custom_residues:
-                res_num = res_label[3:]
-                
-                # Turn ribbon segment solid red
-                view.addStyle(
-                    {'model': 1, 'resi': str(res_num)},
-                    {'cartoon': {'color': 'red'}}
-                )
-                
-                # Floating 3D Text Label
-                view.addResidueLabel(
-                    {'model': 1, 'resi': str(res_num)},
-                    res_label,
-                    {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
-                )
-        
-        # Keep camera focused on docked ligand inside binding pocket
+        # Anchor camera onto docked ligand inside binding pocket
         view.zoomTo({'model': 0})
             
         html_content = view._make_html()
         components.html(html_content, height=540, width=1120)
     else:
-        st.error("Unable to load 3D visualizer canvas. Check receptor PDB files or SMILES format.")
+        st.error("Unable to render 3D complex. Verify SMILES string format.")
 
     st.markdown("---")
 
-    # 5. Input Controls & Descriptor Sections
     b_col1, b_col2 = st.columns([1, 1])
 
     with b_col1:
@@ -168,7 +157,7 @@ with tab2:
 with tab3:
     st.subheader("Target Structure Metadata")
     st.markdown("""
-    * **EGFR Wild-Type (1M17)**: Active kinase domain conformation bound to Erlotinib/Gefitinib class.
+    * **EGFR Wild-Type (1M17)**: Active kinase domain conformation bound to Erlotinib/Gefitinib class[cite: 1].
     * **EGFR T790M Mutant**: Gatekeeper mutation causing drug resistance against 1st-generation TKIs.
     * **EGFR L858R Mutant**: Activating point mutation with heightened sensitivity to TKIs.
     """) 
