@@ -3,7 +3,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import pubchempy as pcp
 
-# Target Binding Site Coordinates for EGFR Receptor Structures
+# Active Site Binding Pocket Centers for EGFR Target Variants
 BINDING_POCKET_CENTERS = {
     "EGFR Wild-Type (1M17)": (22.0, 0.5, 52.5),
     "EGFR T790M Mutant": (29.8, 8.4, 11.2),
@@ -101,6 +101,6 @@ def load_receptor_pdb(variant_name):
     for path in possible_paths:
         if os.path.exists(path):
             with open(path, "r") as f:
-                return f.read(), path.split(".")[-1]  # Returns (file_content, extension)
+                return f.read(), path.split(".")[-1]
                 
     return None, None 

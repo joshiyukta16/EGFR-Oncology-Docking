@@ -44,10 +44,10 @@ with tab1:
         smiles_input = st.text_area("SMILES String:", value=selected_smiles, height=100)
         
         show_receptor = st.checkbox("Display Processed Receptor Target in 3D Viewer", value=True)
+        highlight_residues = st.checkbox("Highlight Active Site Residues (Met793, Lys745, Thr790)", value=True)
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
         
         if run_btn:
-            # Pass selected target_variant to calculate binding pocket alignment
             molblock = smiles_to_3d_molblock(smiles_input, target_variant)
             if molblock:
                 st.session_state["molblock"] = molblock
@@ -85,13 +85,18 @@ with tab1:
                     fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
                     view.addModel(receptor_data, fmt)
                     view.setStyle({'model': -1}, {'cartoon': {'color': 'spectrum'}})
+                    
+                    # 3. Highlight Key Active Site Residues
+                    if highlight_residues:
+                        view.addStyle(
+                            {'model': -1, 'resi': ['793', '745', '790', '858']},
+                            {'stick': {'colorscheme': 'yellowCarbon'}, 'cartoon': {}}
+                        )
                 else:
                     st.info(f"Receptor file for '{target_variant}' not found in /receptors directory.")
 
             view.zoomTo()
             html_content = view._make_html()
-            
-            # Render via components.html to allow 3Dmol.js JavaScript CDN scripts
             components.html(html_content, height=470, width=560)
         else:
             st.info("Click 'Run Virtual Screening & Docking' to view 3D interaction poses.")
@@ -100,9 +105,7 @@ with tab2:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
     if "scores" in st.session_state:
         df_scores = pd.DataFrame(list(st.session_state["scores"].items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
-        
         st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), width="stretch")
-        
         st.bar_chart(df_scores.set_index("EGFR Variant Target"))
     else:
         st.info("Run docking on Tab 1 to generate comparison statistics.")
@@ -110,8 +113,11 @@ with tab2:
 with tab3:
     st.subheader("Target Structure Metadata")
     st.markdown("""
-    * **EGFR Wild-Type (1M17)**: Active kinase domain conformation bound to Erlotinib/Gefitinib class[cite: 1].
+    * **EGFR Wild-Type (1M17)**: Active kinase domain conformation bound to Erlotinib/Gefitinib class.
     * **EGFR T790M Mutant**: Gatekeeper mutation causing drug resistance against 1st-generation TKIs.
     * **EGFR L858R Mutant**: Activating point mutation with heightened sensitivity to TKIs.
+    * **Key Residues Highlighted**:
+      * **Met793**: Forms key hinge-region hydrogen bonds with ATP-competitive inhibitors.
+      * **Lys745**: Preserved catalytic residue inside the binding pocket.
+      * **Thr790 / Met790**: Gatekeeper site responsible for drug resistance via steric hindrance.
     """) 
-    
