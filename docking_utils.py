@@ -1,6 +1,7 @@
 import os
+import re
 from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors, Lipinski
+from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski, rdMolDescriptors
 import pubchempy as pcp
 
 # Active Site Binding Pocket Centers for EGFR Target Variants
@@ -8,6 +9,14 @@ BINDING_POCKET_CENTERS = {
     "EGFR Wild-Type (1M17)": (22.0, 0.5, 52.5),
     "EGFR T790M Mutant": (29.8, 8.4, 11.2),
     "EGFR L858R Mutant": (18.5, 33.2, 24.1)
+}
+
+# 3-Letter to 1-Letter Amino Acid Map
+AA_MAP = {
+    'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
+    'GLU': 'E', 'GLN': 'Q', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
+    'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
+    'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
 }
 
 def fetch_smiles_from_pubchem(drug_name):
@@ -21,28 +30,36 @@ def fetch_smiles_from_pubchem(drug_name):
         return None
 
 def calculate_lipinski_properties(smiles_str):
-    """Calculates Lipinski Rule of 5 physicochemical descriptors."""
+    """Calculates comprehensive physicochemical descriptors and drug-likeness rules."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
             return None
             
         mw = round(Descriptors.MolWt(mol), 2)
-        logp = round(Descriptors.MolLogP(mol), 2)
+        logp = round(Crippen.MolLogP(mol), 2)
+        tpsa = round(rdMolDescriptors.CalcTPSA(mol), 2)
         hbd = Lipinski.NumHDonors(mol)
         hba = Lipinski.NumHAcceptors(mol)
         rot_bonds = Lipinski.NumRotatableBonds(mol)
+        rings = Lipinski.RingCount(mol)
+        heavy_atoms = mol.GetNumHeavyAtoms()
+        fcsp3 = round(rdMolDescriptors.CalcFractionCSP3(mol), 2)
         
-        # Check rule violations
+        # Check Lipinski rule violations
         violations = sum([mw > 500, logp > 5, hbd > 5, hba > 10])
         
         return {
-            "MW": mw,
-            "LogP": logp,
-            "HBD": hbd,
-            "HBA": hba,
-            "RotBonds": rot_bonds,
-            "Violations": violations
+            "Molecular Weight (g/mol)": mw,
+            "LogP (Lipophilicity)": logp,
+            "TPSA (Å²)": tpsa,
+            "H-Bond Donors (HBD)": hbd,
+            "H-Bond Acceptors (HBA)": hba,
+            "Rotatable Bonds": rot_bonds,
+            "Ring Count": rings,
+            "Heavy Atom Count": heavy_atoms,
+            "Fraction Csp3": fcsp3,
+            "Lipinski Violations": violations
         }
     except Exception:
         return None
@@ -130,4 +147,36 @@ def load_receptor_pdb(variant_name):
             with open(path, "r") as f:
                 return f.read(), path.split(".")[-1]
                 
-    return None, None 
+    return None, None
+
+def get_receptor_sequence(receptor_data):
+    """Extracts unique amino acid residues and sequence representation from PDB/PDBQT text."""
+    if not receptor_data:
+        return [], ""
+        
+    seen_residues = set()
+    sequence_list = []
+    
+    for line in receptor_data.splitlines():
+        if line.startswith("ATOM") or line.startswith("HETATM"):
+            try:
+                res_name = line[17:20].strip()
+                res_seq = line[22:26].strip()
+                res_id = f"{res_name}{res_seq}"
+                
+                if res_id not in seen_residues and res_name in AA_MAP:
+                    seen_residues.add(res_id)
+                    sequence_list.append({
+                        "res_name": res_name,
+                        "res_num": res_seq,
+                        "label": f"{res_name}{res_seq}",
+                        "single": AA_MAP[res_name]
+                    })
+            except Exception:
+                continue
+                
+    # Sort sequence by residue number
+    sequence_list.sort(key=lambda x: int(re.sub(r'\D', '', x["res_num"])) if re.sub(r'\D', '', x["res_num"]).isdigit() else 0)
+    single_str = "".join([item["single"] for item in sequence_list])
+    
+    return sequence_list, single_str 

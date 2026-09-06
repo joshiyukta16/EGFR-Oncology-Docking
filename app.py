@@ -7,7 +7,8 @@ from docking_utils import (
     get_all_variant_scores, 
     fetch_smiles_from_pubchem,
     load_receptor_pdb,
-    calculate_lipinski_properties
+    calculate_lipinski_properties,
+    get_receptor_sequence
 )
 
 st.set_page_config(page_title="EGFR Molecular Docking Dashboard", layout="wide")
@@ -35,17 +36,69 @@ if search_query:
         st.sidebar.error("Drug not found on PubChem. Using default structure.")
 
 # Main Interface Tabs
-tab1, tab2, tab3 = st.tabs(["3D Docking Viewer", "Comparative Analysis Table", "Receptor Info"])
+tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
 
 with tab1:
-    col1, col2 = st.columns([1, 1])
+    # --- TOP HORIZONTAL SECTION: 3D VISUALIZER & SEQUENCE DISPLAY ---
+    st.subheader("1. Interactive 3D Complex & Sequence Inspection")
     
-    with col1:
-        st.subheader("1. Ligand Input & Processing")
-        smiles_input = st.text_area("SMILES String:", value=selected_smiles, height=100)
+    # Load receptor data first to extract sequence
+    receptor_data, file_ext = load_receptor_pdb(target_variant)
+    seq_list, seq_str = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
+
+    # Expandable Horizontal Receptor Sequence Viewer
+    with st.expander("🔬 View Target Receptor Amino Acid Sequence", expanded=True):
+        if seq_str:
+            st.text_area("Receptor Primary Sequence (1-Letter Code):", value=seq_str, height=70, disabled=True)
+            
+            # Interactive Residue Picker
+            res_options = [item["label"] for item in seq_list]
+            selected_custom_residues = st.multiselect(
+                "Select Residues to Highlight in 3D Structure:",
+                options=res_options,
+                default=[r for r in ["MET793", "LYS745", "THR790", "MET790", "LEU858", "ARG858"] if r in res_options]
+            )
+        else:
+            st.info("Receptor file not found. Load receptor to extract sequence.")
+            selected_custom_residues = []
+
+    # 3D Visualizer Box across full horizontal width
+    if "molblock" in st.session_state:
+        view = py3Dmol.view(width=1100, height=500)
         
-        show_receptor = st.checkbox("Display Processed Receptor Target in 3D Viewer", value=True)
-        highlight_residues = st.checkbox("Highlight Active Site Residues (Met793, Lys745, Thr790)", value=True)
+        # 1. Render Ligand (Green Carbon Sticks)
+        view.addModel(st.session_state["molblock"], "mol")
+        view.setStyle({'model': -1}, {'stick': {'colorscheme': 'greenCarbon'}})
+        
+        # 2. Render Receptor Backbone (Spectrum Cartoon)
+        if receptor_data:
+            fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
+            view.addModel(receptor_data, fmt)
+            view.setStyle({'model': -1}, {'cartoon': {'color': 'spectrum'}})
+            
+            # 3. Highlight Selected Residues in Red/Yellow Sticks
+            if selected_custom_residues:
+                # Extract numerical residue indices
+                res_nums = [r[3:] for r in selected_custom_residues]
+                view.addStyle(
+                    {'model': -1, 'resi': res_nums},
+                    {'stick': {'colorscheme': 'redCarbon'}, 'cartoon': {}}
+                )
+                
+        view.zoomTo()
+        html_content = view._make_html()
+        components.html(html_content, height=520, width=1120)
+    else:
+        st.info("Enter ligand SMILES below and click 'Run Virtual Screening & Docking' to generate 3D complex.")
+
+    st.markdown("---")
+
+    # --- BOTTOM SECTION: INPUTS, BINDING AFFINITY, & DESCRIPTORS ---
+    b_col1, b_col2 = st.columns([1, 1])
+
+    with b_col1:
+        st.subheader("2. Ligand Input & Processing")
+        smiles_input = st.text_area("SMILES String Format:", value=selected_smiles, height=100)
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
         
         if run_btn:
@@ -54,30 +107,16 @@ with tab1:
                 st.session_state["molblock"] = molblock
                 st.session_state["scores"] = get_all_variant_scores(smiles_input)
                 st.success("Structure and docking pose calculated!")
+                st.rerun()
             else:
                 st.error("Invalid SMILES input string.")
 
         if "scores" in st.session_state:
-            st.subheader("2. Target Binding Affinity")
+            st.markdown("---")
+            st.subheader("3. Predicted Binding Affinity")
             selected_score = st.session_state["scores"][target_variant]
             st.metric(label=f"Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
             
-            # --- Lipinski Rule of 5 Properties ---
-            props = calculate_lipinski_properties(smiles_input)
-            if props:
-                st.markdown("---")
-                st.subheader("Drug-Likeness Properties (Lipinski Ro5)")
-                l_col1, l_col2, l_col3 = st.columns(3)
-                l_col1.metric("Mol. Weight", f"{props['MW']} g/mol", delta="< 500" if props['MW'] <= 500 else "High")
-                l_col2.metric("LogP", props['LogP'], delta="< 5.0" if props['LogP'] <= 5.0 else "High")
-                l_col3.metric("Ro5 Violations", props['Violations'], delta="Pass" if props['Violations'] == 0 else "Alert", delta_color="normal" if props['Violations'] == 0 else "inverse")
-                
-                with st.expander("Detailed Descriptor Breakdown"):
-                    st.write(f"* **H-Bond Donors (HBD)**: {props['HBD']} (Limit ≤ 5)")
-                    st.write(f"* **H-Bond Acceptors (HBA)**: {props['HBA']} (Limit ≤ 10)")
-                    st.write(f"* **Rotatable Bonds**: {props['RotBonds']}")
-
-            st.markdown("---")
             st.download_button(
                 label="Download Generated 3D Ligand (.sdf/.mol)",
                 data=st.session_state["molblock"],
@@ -85,37 +124,22 @@ with tab1:
                 mime="chemical/x-mdl-molfile"
             )
 
-    with col2:
-        st.subheader("3. Interactive 3D Complex Viewer")
-        if "molblock" in st.session_state:
-            view = py3Dmol.view(width=550, height=450)
+    with b_col2:
+        if "scores" in st.session_state:
+            st.subheader("4. Comprehensive Molecular Descriptors")
+            props = calculate_lipinski_properties(smiles_input)
             
-            # 1. Render Ligand (Green Carbon Sticks)
-            view.addModel(st.session_state["molblock"], "mol")
-            view.setStyle({'model': -1}, {'stick': {'colorscheme': 'greenCarbon'}})
-            
-            # 2. Render Receptor Backbone (Spectrum Ribbon/Cartoon)
-            if show_receptor:
-                receptor_data, file_ext = load_receptor_pdb(target_variant)
-                if receptor_data:
-                    fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
-                    view.addModel(receptor_data, fmt)
-                    view.setStyle({'model': -1}, {'cartoon': {'color': 'spectrum'}})
-                    
-                    # 3. Highlight Key Active Site Residues
-                    if highlight_residues:
-                        view.addStyle(
-                            {'model': -1, 'resi': ['793', '745', '790', '858']},
-                            {'stick': {'colorscheme': 'yellowCarbon'}, 'cartoon': {}}
-                        )
-                else:
-                    st.info(f"Receptor file for '{target_variant}' not found in /receptors directory.")
-
-            view.zoomTo()
-            html_content = view._make_html()
-            components.html(html_content, height=470, width=560)
-        else:
-            st.info("Click 'Run Virtual Screening & Docking' to view 3D interaction poses.")
+            if props:
+                df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
+                st.dataframe(df_descriptors, width="stretch", hide_index=True)
+                
+                csv_data = df_descriptors.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download Descriptors (.csv)",
+                    data=csv_data,
+                    file_name="ligand_descriptors.csv",
+                    mime="text/csv"
+                )
 
 with tab2:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
@@ -129,11 +153,8 @@ with tab2:
 with tab3:
     st.subheader("Target Structure Metadata")
     st.markdown("""
-    * **EGFR Wild-Type (1M17)**: Active kinase domain conformation bound to Erlotinib/Gefitinib class.
+    * **EGFR Wild-Type (1M17)**: Active kinase domain conformation bound to Erlotinib/Gefitinib class[cite: 1].
     * **EGFR T790M Mutant**: Gatekeeper mutation causing drug resistance against 1st-generation TKIs.
     * **EGFR L858R Mutant**: Activating point mutation with heightened sensitivity to TKIs.
-    * **Key Residues Highlighted**:
-      * **Met793**: Forms key hinge-region hydrogen bonds with ATP-competitive inhibitors.
-      * **Lys745**: Preserved catalytic residue inside the binding pocket.
-      * **Thr790 / Met790**: Gatekeeper site responsible for drug resistance via steric hindrance.
+    * **Interactive Sequence Search**: Select any amino acid from the upper panel to highlight its 3D sidechain in red inside the active site.
     """) 
