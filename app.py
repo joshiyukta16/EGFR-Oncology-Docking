@@ -6,7 +6,8 @@ from docking_utils import (
     smiles_to_3d_molblock, 
     get_all_variant_scores, 
     fetch_smiles_from_pubchem,
-    load_receptor_pdb
+    load_receptor_pdb,
+    calculate_lipinski_properties
 )
 
 st.set_page_config(page_title="EGFR Molecular Docking Dashboard", layout="wide")
@@ -61,7 +62,22 @@ with tab1:
             selected_score = st.session_state["scores"][target_variant]
             st.metric(label=f"Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
             
-            # Export Option
+            # --- Lipinski Rule of 5 Properties ---
+            props = calculate_lipinski_properties(smiles_input)
+            if props:
+                st.markdown("---")
+                st.subheader("Drug-Likeness Properties (Lipinski Ro5)")
+                l_col1, l_col2, l_col3 = st.columns(3)
+                l_col1.metric("Mol. Weight", f"{props['MW']} g/mol", delta="< 500" if props['MW'] <= 500 else "High")
+                l_col2.metric("LogP", props['LogP'], delta="< 5.0" if props['LogP'] <= 5.0 else "High")
+                l_col3.metric("Ro5 Violations", props['Violations'], delta="Pass" if props['Violations'] == 0 else "Alert", delta_color="normal" if props['Violations'] == 0 else "inverse")
+                
+                with st.expander("Detailed Descriptor Breakdown"):
+                    st.write(f"* **H-Bond Donors (HBD)**: {props['HBD']} (Limit ≤ 5)")
+                    st.write(f"* **H-Bond Acceptors (HBA)**: {props['HBA']} (Limit ≤ 10)")
+                    st.write(f"* **Rotatable Bonds**: {props['RotBonds']}")
+
+            st.markdown("---")
             st.download_button(
                 label="Download Generated 3D Ligand (.sdf/.mol)",
                 data=st.session_state["molblock"],
