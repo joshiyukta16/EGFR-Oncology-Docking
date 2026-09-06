@@ -3,7 +3,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import pubchempy as pcp
 
-# Binding Pocket Centroid Coordinates (X, Y, Z) for EGFR Kinase Active Sites
+# Target Binding Site Coordinates for EGFR Receptor Structures
 BINDING_POCKET_CENTERS = {
     "EGFR Wild-Type (1M17)": (22.0, 0.5, 52.5),
     "EGFR T790M Mutant": (29.8, 8.4, 11.2),
@@ -21,28 +21,33 @@ def fetch_smiles_from_pubchem(drug_name):
         return None
 
 def smiles_to_3d_molblock(smiles_str, variant_name="EGFR Wild-Type (1M17)"):
-    """Converts SMILES string into a 3D MolBlock translated into the target active site."""
+    """
+    Converts SMILES string into a 3D MolBlock and translates its 
+    centroid into the active binding pocket of the selected EGFR target.
+    """
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
             return None
         mol = Chem.AddHs(mol)
         
-        # 1. Generate 3D Conformer
+        # 1. Embed and optimize 3D conformer
         AllChem.EmbedMolecule(mol, randomSeed=42)
         AllChem.MMFFOptimizeMolecule(mol)
         
         # 2. Get target active site center coordinates
-        center_x, center_y, center_z = BINDING_POCKET_CENTERS.get(variant_name, (22.0, 0.5, 52.5))
+        center_x, center_y, center_z = BINDING_POCKET_CENTERS.get(
+            variant_name, (22.0, 0.5, 52.5)
+        )
         
-        # 3. Calculate current ligand centroid
+        # 3. Compute current ligand centroid
         conf = mol.GetConformer()
         num_atoms = mol.GetNumAtoms()
         cx = sum(conf.GetAtomPosition(i).x for i in range(num_atoms)) / num_atoms
         cy = sum(conf.GetAtomPosition(i).y for i in range(num_atoms)) / num_atoms
         cz = sum(conf.GetAtomPosition(i).z for i in range(num_atoms)) / num_atoms
         
-        # 4. Shift ligand coordinates directly into the receptor binding pocket
+        # 4. Translate ligand into the active site pocket
         dx = center_x - cx
         dy = center_y - cy
         dz = center_z - cz
