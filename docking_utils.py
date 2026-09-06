@@ -149,10 +149,13 @@ def load_receptor_pdb(variant_name):
                 
     return None, None
 
-def get_receptor_sequence(receptor_data):
-    """Extracts unique amino acid residues and sequence representation from PDB/PDBQT text."""
+def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
+    """Extracts unique amino acid residues and returns formatted HTML sequence string with highlights."""
     if not receptor_data:
         return [], ""
+        
+    if highlighted_res_nums is None:
+        highlighted_res_nums = []
         
     seen_residues = set()
     sequence_list = []
@@ -176,6 +179,18 @@ def get_receptor_sequence(receptor_data):
                 continue
                 
     sequence_list.sort(key=lambda x: int(re.sub(r'\D', '', x["res_num"])) if re.sub(r'\D', '', x["res_num"]).isdigit() else 0)
-    single_str = "".join([item["single"] for item in sequence_list])
     
-    return sequence_list, single_str 
+    # Generate styled HTML string highlighting selected residue badges
+    html_spans = []
+    for item in sequence_list:
+        if item["res_num"] in highlighted_res_nums:
+            html_spans.append(
+                f'<span style="background-color: #ff4b4b; color: white; padding: 2px 5px; border-radius: 4px; font-weight: bold; margin: 1px; display: inline-block;" title="{item["label"]}">{item["single"]}</span>'
+            )
+        else:
+            html_spans.append(
+                f'<span style="padding: 2px; color: #333;" title="{item["label"]}">{item["single"]}</span>'
+            )
+            
+    html_sequence = "".join(html_spans)
+    return sequence_list, html_sequence 
