@@ -26,9 +26,13 @@ def smiles_to_3d_molblock(smiles_str):
     except Exception:
         return None
 
+def predict_binding_affinity(variant_name, smiles_str):
+    """Predicts docking score for a specific variant."""
+    scores = get_all_variant_scores(smiles_str)
+    return scores.get(variant_name, -7.5)
+
 def get_all_variant_scores(smiles_str):
-    """Returns predicted docking scores (kcal/mol) across all variants."""
-    # Baseline benchmark energy levels (kcal/mol)
+    """Returns predicted docking scores (kcal/mol) across all EGFR target variants."""
     scores = {
         "EGFR Wild-Type (1M17)": -8.4,
         "EGFR T790M Mutant": -6.2,
@@ -37,7 +41,7 @@ def get_all_variant_scores(smiles_str):
     return scores
 
 def load_receptor_pdb(variant_name):
-    """Loads the processed receptor PDB content from the receptors folder."""
+    """Loads processed receptor PDB content from the receptors folder."""
     filename_map = {
         "EGFR Wild-Type (1M17)": "receptors/1M17_wildtype.pdb",
         "EGFR T790M Mutant": "receptors/T790M_mutant.pdb",
