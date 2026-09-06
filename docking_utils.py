@@ -12,10 +12,10 @@ AA_MAP = {
 }
 
 def fetch_smiles_from_pubchem(drug_name):
-    """Fetches canonical SMILES string from PubChem using drug name."""
+    """Fetches connectivity SMILES string from PubChem using drug name."""
     try:
         compounds = pcp.get_compounds(drug_name, 'name')
-        return compounds[0].canonical_smiles if compounds else None
+        return compounds[0].connectivity_smiles if compounds else None
     except Exception:
         return None
 

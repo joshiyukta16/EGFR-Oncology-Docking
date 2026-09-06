@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import py3Dmol
 import pandas as pd
 from docking_utils import (
@@ -15,19 +14,14 @@ from docking_utils import (
 
 st.set_page_config(page_title="EGFR Molecular Docking Dashboard", layout="wide")
 
-# Default Sample SMILES (Gefitinib)
 DEFAULT_SMILES = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
-
-# Reference Cover Image URLs (Docking / Molecular Interactions)
 COVER_IMAGE_URL = "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=1200&q=80"
 
-# Session State Initializations
 if "docking_ran" not in st.session_state:
     st.session_state["docking_ran"] = False
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = DEFAULT_SMILES
 
-# Docking Complex Visualizer State Controls
 if "complex_spin" not in st.session_state:
     st.session_state["complex_spin"] = False
 if "complex_dark" not in st.session_state:
@@ -35,7 +29,6 @@ if "complex_dark" not in st.session_state:
 if "complex_zoom" not in st.session_state:
     st.session_state["complex_zoom"] = 1.0
 
-# Standalone Ligand Visualizer State Controls
 if "ligand_spin" not in st.session_state:
     st.session_state["ligand_spin"] = False
 if "ligand_dark" not in st.session_state:
@@ -45,9 +38,6 @@ if "ligand_zoom" not in st.session_state:
 if "highlight_element" not in st.session_state:
     st.session_state["highlight_element"] = "ALL"
 
-# ==========================================
-# 1. COVER HERO SECTION WITH SMOOTH SCROLL
-# ==========================================
 st.markdown("""
     <style>
         html { scroll-behavior: smooth; }
@@ -84,7 +74,6 @@ with hero_col1:
         unsafe_allow_html=True
     )
     
-    # Smooth Scroll Action Button to Main Dashboard
     st.markdown("""
         <a href="#dashboard-main" style="text-decoration: none;">
             <div style="background-color: #ff4b4b; color: white; padding: 14px 28px; border-radius: 8px; 
@@ -96,16 +85,12 @@ with hero_col1:
     """, unsafe_allow_html=True)
 
 with hero_col2:
-    st.image(COVER_IMAGE_URL, caption="Protein–Ligand Structural Interaction Interface", use_container_width=True)
+    st.image(COVER_IMAGE_URL, caption="Protein–Ligand Structural Interaction Interface", width="stretch")
 
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
-
 st.markdown("---")
 
-# ==========================================
-# 2. SIDEBAR CONFIGURATION
-# ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -127,9 +112,6 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
-# ==========================================
-# 3. MAIN DASHBOARD TABS
-# ==========================================
 tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
 
 with tab1:
@@ -148,7 +130,6 @@ with tab1:
     selected_nums = [r[3:] for r in selected_custom_residues]
     _, html_sequence = get_receptor_sequence(receptor_data, selected_nums) if receptor_data else ([], "")
 
-    # Expandable Primary Sequence Viewer with Light Blue Style
     with st.expander("🔬 View Primary Sequence (Highlighted Residues in Red)", expanded=True):
         if html_sequence:
             st.markdown(
@@ -160,26 +141,21 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # 3D Docked Complex Visualizer Canvas
     if st.session_state["docking_ran"]:
         molblock = smiles_to_3d_molblock(active_smiles, receptor_data)
         
         if receptor_data and molblock:
             view = py3Dmol.view(width=1100, height=480)
-            
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
-            # Model 0: Ligand (Green Carbon Sticks)
             view.addModel(molblock, "mol")
             view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
             
-            # Model 1: Receptor Backbone
             fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
             view.addModel(receptor_data, fmt)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # Highlight Selected Residues on Cartoon Ribbon
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = res_label[3:]
@@ -193,7 +169,6 @@ with tab1:
                         {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                     )
             
-            # Click Interaction Callback
             view.setClickable(
                 {'model': 1},
                 True,
@@ -218,30 +193,29 @@ with tab1:
                 view.zoom(st.session_state["complex_zoom"])
                 
             html_content = view._make_html()
-            components.html(html_content, height=490, width=1120)
+            st.iframe(html_content, height=490, width=1120)
             
-            # --- BELOW COMPLEX VISUALIZER TOOLBAR ---
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
                 spin_lbl = "Pause Spin ⏸️" if st.session_state["complex_spin"] else "Toggle Spin 🔄"
-                if st.button(spin_lbl, key="c_spin", use_container_width=True):
+                if st.button(spin_lbl, key="c_spin", width="stretch"):
                     st.session_state["complex_spin"] = not st.session_state["complex_spin"]
                     st.rerun()
             with c_btn2:
                 thm_lbl = "Light Mode ☀️" if st.session_state["complex_dark"] else "Dark Mode 🌙"
-                if st.button(thm_lbl, key="c_dark", use_container_width=True):
+                if st.button(thm_lbl, key="c_dark", width="stretch"):
                     st.session_state["complex_dark"] = not st.session_state["complex_dark"]
                     st.rerun()
             with c_btn3:
-                if st.button("Zoom In 🔍+", key="c_zin", use_container_width=True):
+                if st.button("Zoom In 🔍+", key="c_zin", width="stretch"):
                     st.session_state["complex_zoom"] *= 1.2
                     st.rerun()
             with c_btn4:
-                if st.button("Zoom Out 🔍-", key="c_zout", use_container_width=True):
+                if st.button("Zoom Out 🔍-", key="c_zout", width="stretch"):
                     st.session_state["complex_zoom"] *= 0.8
                     st.rerun()
             with c_btn5:
-                if st.button("Reset View 🎯", key="c_reset", use_container_width=True):
+                if st.button("Reset View 🎯", key="c_reset", width="stretch"):
                     st.session_state["complex_zoom"] = 1.0
                     st.session_state["complex_spin"] = False
                     st.rerun()
@@ -252,9 +226,6 @@ with tab1:
 
     st.markdown("---")
 
-    # ==========================================
-    # 4. LOWER PANEL: LIGAND INPUT & STANDALONE 3D VISUALIZER
-    # ==========================================
     st.subheader("2. Ligand Input & Standalone 3D Conformer Inspection")
     
     l_col1, l_col2 = st.columns([1, 1])
@@ -269,7 +240,6 @@ with tab1:
             st.session_state["docking_ran"] = True
             st.rerun()
 
-        # Binding energy metric rendered strictly after running docking
         if st.session_state["docking_ran"]:
             selected_score = compute_dynamic_binding_score(active_smiles, target_variant)
             st.markdown("---")
@@ -286,7 +256,6 @@ with tab1:
             
             l_view.addModel(lig_molblock, "mol")
             
-            # Atom Element Color Scheme Filtering
             if st.session_state["highlight_element"] == "NITROGEN":
                 l_view.setStyle({'elem': 'N'}, {'sphere': {'color': 'blue', 'radius': 0.6}})
                 l_view.setStyle({'elem': 'C'}, {'stick': {'colorscheme': 'greenCarbon'}})
@@ -300,7 +269,6 @@ with tab1:
             else:
                 l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}, 'sphere': {'radius': 0.3}})
             
-            # Interactive Click Callback on Standalone Ligand Atoms
             l_view.setClickable(
                 {},
                 True,
@@ -325,60 +293,55 @@ with tab1:
                 l_view.zoom(st.session_state["ligand_zoom"])
                 
             l_html = l_view._make_html()
-            components.html(l_html, height=310, width=550)
+            st.iframe(l_html, height=310, width=550)
             
-            # Below Standalone Ligand Action Controls
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
                 l_spin_lbl = "Pause ⏸️" if st.session_state["ligand_spin"] else "Spin 🔄"
-                if st.button(l_spin_lbl, key="l_spin", use_container_width=True):
+                if st.button(l_spin_lbl, key="l_spin", width="stretch"):
                     st.session_state["ligand_spin"] = not st.session_state["ligand_spin"]
                     st.rerun()
             with l_btn2:
                 l_thm_lbl = "Light ☀️" if st.session_state["ligand_dark"] else "Dark 🌙"
-                if st.button(l_thm_lbl, key="l_dark", use_container_width=True):
+                if st.button(l_thm_lbl, key="l_dark", width="stretch"):
                     st.session_state["ligand_dark"] = not st.session_state["ligand_dark"]
                     st.rerun()
             with l_btn3:
-                if st.button("In 🔍+", key="l_zin", use_container_width=True):
+                if st.button("In 🔍+", key="l_zin", width="stretch"):
                     st.session_state["ligand_zoom"] *= 1.2
                     st.rerun()
             with l_btn4:
-                if st.button("Out 🔍-", key="l_zout", use_container_width=True):
+                if st.button("Out 🔍-", key="l_zout", width="stretch"):
                     st.session_state["ligand_zoom"] *= 0.8
                     st.rerun()
             with l_btn5:
-                if st.button("Reset 🎯", key="l_reset", use_container_width=True):
+                if st.button("Reset 🎯", key="l_reset", width="stretch"):
                     st.session_state["ligand_zoom"] = 1.0
                     st.session_state["ligand_spin"] = False
                     st.session_state["highlight_element"] = "ALL"
                     st.rerun()
 
-            # Functional Element Quick Highlight Filter Badges
             st.markdown("<small><b>Interactive Element Filter Badges:</b></small>", unsafe_allow_html=True)
             f_col1, f_col2, f_col3, f_col4 = st.columns(4)
             with f_col1:
-                if st.button("All Atoms", use_container_width=True):
+                if st.button("All Atoms", width="stretch"):
                     st.session_state["highlight_element"] = "ALL"
                     st.rerun()
             with f_col2:
-                if st.button("Nitrogens (N)", use_container_width=True):
+                if st.button("Nitrogens (N)", width="stretch"):
                     st.session_state["highlight_element"] = "NITROGEN"
                     st.rerun()
             with f_col3:
-                if st.button("Oxygens (O)", use_container_width=True):
+                if st.button("Oxygens (O)", width="stretch"):
                     st.session_state["highlight_element"] = "OXYGEN"
                     st.rerun()
             with f_col4:
-                if st.button("Halogens (F/Cl)", use_container_width=True):
+                if st.button("Halogens (F/Cl)", width="stretch"):
                     st.session_state["highlight_element"] = "HALOGEN"
                     st.rerun()
 
     st.markdown("---")
 
-    # ==========================================
-    # 5. LIPINSKI RULE PROPERTIES PANEL BELOW LIGAND VISUALIZER
-    # ==========================================
     st.subheader("3. Lipinski Rule & Comprehensive Chemical Descriptors")
     props = calculate_lipinski_properties(active_smiles)
     if props:
