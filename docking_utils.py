@@ -5,9 +5,10 @@ from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski, rdMolDescriptors
 import pubchempy as pcp
 
 # Active Site Binding Pocket Centers for EGFR Target Variants
+# Active Site Binding Pocket Centers for EGFR Target Variants
 BINDING_POCKET_CENTERS = {
     "EGFR Wild-Type (1M17)": (22.0, 0.5, 52.5),
-    "EGFR T790M Mutant": (29.8, 8.4, 11.2),
+    "EGFR T790M Mutant": (35.2, 12.5, 53.8),   # Updated coordinates for 2ITY
     "EGFR L858R Mutant": (18.5, 33.2, 24.1)
 }
 
