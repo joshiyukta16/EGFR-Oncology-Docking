@@ -42,14 +42,13 @@ with tab1:
     # --- TOP HORIZONTAL SECTION: 3D VISUALIZER & SEQUENCE DISPLAY ---
     st.subheader("1. Interactive 3D Complex & Sequence Inspection")
     
-    # Load receptor data first to extract sequence
+    # Load receptor data first
     receptor_data, file_ext = load_receptor_pdb(target_variant)
     
-    # Get sequence data for options
+    # Extract sequence list for multi-select options
     dummy_seq, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
     res_options = [item["label"] for item in dummy_seq]
-
-    # Multiselect residue picker
+    
     selected_custom_residues = st.multiselect(
         "Select Residues to Highlight in Sequence & 3D Ribbon Structure:",
         options=res_options,
@@ -69,48 +68,49 @@ with tab1:
         else:
             st.info("Receptor file not found. Load receptor to extract sequence.")
 
-    # 3D Visualizer
+    # 3D Visualizer Box
     if "molblock" in st.session_state:
-        view = py3Dmol.view(width=1100, height=500)
+        view = py3Dmol.view(width=1100, height=520)
         
-        # 1. Render Ligand (Green Carbon Sticks)
+        # 1. Add Ligand as Model Index 0
         view.addModel(st.session_state["molblock"], "mol")
-        view.setStyle({'model': -1}, {'stick': {'colorscheme': 'greenCarbon'}})
+        view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
         
-        # 2. Render Receptor Backbone (Spectrum Cartoon)
+        # 2. Add Receptor as Model Index 1
         if receptor_data:
             fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
             view.addModel(receptor_data, fmt)
             
-            # Base style for the full receptor ribbon
-            view.setStyle({'model': -1}, {'cartoon': {'color': 'spectrum'}})
+            # Base cartoon style for full receptor (Model 1)
+            view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # 3. Highlight Selected Residues directly on the Ribbon Backbone (No Sidechains)
+            # 3. Highlight Selected Residues directly on Model 1 Cartoon Ribbon
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
-                    res_num = res_label[3:]
+                    res_num = str(res_label[3:])
                     
-                    # Color only the cartoon ribbon segment red
+                    # Color cartoon ribbon segment solid red (No sidechain sticks)
                     view.addStyle(
-                        {'model': -1, 'resi': res_num},
+                        {'model': 1, 'resi': res_num},
                         {'cartoon': {'color': 'red'}}
                     )
                     
-                    # Add 3D Floating Label over the ribbon segment
+                    # Floating 3D Text Label over the ribbon segment
                     view.addResidueLabel(
-                        {'resi': res_num},
-                        {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.8}
+                        {'model': 1, 'resi': res_num},
+                        res_label,
+                        {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                     )
                 
-                # Center and focus camera on highlighted ribbon segments
-                view.zoomTo({'resi': selected_nums})
+                # Keep camera zoomed on the ligand binding pocket (Model 0)
+                view.zoomTo({'model': 0})
             else:
-                view.zoomTo()
+                view.zoomTo({'model': 0})
         else:
             view.zoomTo()
             
         html_content = view._make_html()
-        components.html(html_content, height=520, width=1120)
+        components.html(html_content, height=540, width=1120)
     else:
         st.info("Enter ligand SMILES below and click 'Run Virtual Screening & Docking' to generate 3D complex.")
 
