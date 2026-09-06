@@ -1,6 +1,6 @@
 import os
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, Descriptors, Lipinski
 import pubchempy as pcp
 
 # Active Site Binding Pocket Centers for EGFR Target Variants
@@ -17,6 +17,33 @@ def fetch_smiles_from_pubchem(drug_name):
         if compounds:
             return compounds[0].canonical_smiles
         return None
+    except Exception:
+        return None
+
+def calculate_lipinski_properties(smiles_str):
+    """Calculates Lipinski Rule of 5 physicochemical descriptors."""
+    try:
+        mol = Chem.MolFromSmiles(smiles_str)
+        if mol is None:
+            return None
+            
+        mw = round(Descriptors.MolWt(mol), 2)
+        logp = round(Descriptors.MolLogP(mol), 2)
+        hbd = Lipinski.NumHDonors(mol)
+        hba = Lipinski.NumHAcceptors(mol)
+        rot_bonds = Lipinski.NumRotatableBonds(mol)
+        
+        # Check rule violations
+        violations = sum([mw > 500, logp > 5, hbd > 5, hba > 10])
+        
+        return {
+            "MW": mw,
+            "LogP": logp,
+            "HBD": hbd,
+            "HBA": hba,
+            "RotBonds": rot_bonds,
+            "Violations": violations
+        }
     except Exception:
         return None
 
