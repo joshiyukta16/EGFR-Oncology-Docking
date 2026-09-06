@@ -12,6 +12,7 @@ AA_MAP = {
 }
 
 def fetch_smiles_from_pubchem(drug_name):
+    """Fetches canonical SMILES string from PubChem using drug name."""
     try:
         compounds = pcp.get_compounds(drug_name, 'name')
         return compounds[0].canonical_smiles if compounds else None
@@ -19,6 +20,7 @@ def fetch_smiles_from_pubchem(drug_name):
         return None
 
 def calculate_lipinski_properties(smiles_str):
+    """Calculates comprehensive physicochemical descriptors and drug-likeness rules."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None: 
@@ -44,6 +46,7 @@ def calculate_lipinski_properties(smiles_str):
         return None
 
 def compute_dynamic_binding_score(smiles_str, variant_name):
+    """Calculates binding affinity based on ligand physicochemical properties and target variant."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None: 
@@ -64,6 +67,7 @@ def compute_dynamic_binding_score(smiles_str, variant_name):
         return -7.50
 
 def get_all_variant_scores(smiles_str):
+    """Returns binding scores across all EGFR target variants."""
     return {
         "EGFR Wild-Type (1M17)": compute_dynamic_binding_score(smiles_str, "EGFR Wild-Type (1M17)"),
         "EGFR T790M Mutant": compute_dynamic_binding_score(smiles_str, "EGFR T790M Mutant"),
@@ -88,7 +92,7 @@ def get_receptor_center(receptor_data):
     return (0.0, 0.0, 0.0)
 
 def smiles_to_3d_molblock(smiles_str, receptor_data=None):
-    """Generates 3D ligand conformer aligned directly to receptor binding centroid."""
+    """Converts SMILES string into a 3D MolBlock translated into the active binding pocket."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None: 
@@ -115,6 +119,7 @@ def smiles_to_3d_molblock(smiles_str, receptor_data=None):
         return None
 
 def load_receptor_pdb(variant_name):
+    """Loads processed receptor PDB or PDBQT content from the receptors folder."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
@@ -140,6 +145,7 @@ def load_receptor_pdb(variant_name):
     return None, None
 
 def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
+    """Extracts unique amino acid residues and returns formatted HTML sequence string with highlights."""
     if not receptor_data:
         return [], ""
     if highlighted_res_nums is None:
@@ -176,8 +182,7 @@ def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
             )
         else:
             html_spans.append(
-                f'<span style="padding: 2px; color: #333;" title="{item["label"]}">{item["single"]}</span>'
+                f'<span style="padding: 2px; color: #222222;" title="{item["label"]}">{item["single"]}</span>'
             )
             
     return sequence_list, "".join(html_spans) 
-    
