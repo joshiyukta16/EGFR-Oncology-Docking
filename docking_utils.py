@@ -1,17 +1,17 @@
 import os
 import re
-import math
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski, rdMolDescriptors
 import pubchempy as pcp
 
-# Target Binding Centers
+# Active Site Binding Pocket Centers for EGFR Target Variants
 BINDING_POCKET_CENTERS = {
     "EGFR Wild-Type (1M17)": (22.0, 0.5, 52.5),
     "EGFR T790M Mutant": (35.2, 12.5, 53.8),
     "EGFR L858R Mutant": (18.5, 33.2, 24.1)
 }
 
+# 3-Letter to 1-Letter Amino Acid Map
 AA_MAP = {
     'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
     'GLU': 'E', 'GLN': 'Q', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
@@ -20,136 +20,123 @@ AA_MAP = {
 }
 
 def fetch_smiles_from_pubchem(drug_name):
-    """Fetches canonical SMILES from PubChem."""
+    """Fetches canonical SMILES string from PubChem using drug name."""
     try:
         compounds = pcp.get_compounds(drug_name, 'name')
-        return compounds[0].canonical_smiles if compounds else None
+        if compounds:
+            return compounds[0].canonical_smiles
+        return None
     except Exception:
         return None
 
 def calculate_lipinski_properties(smiles_str):
-    """Calculates comprehensive physicochemical descriptors."""
+    """Calculates comprehensive physicochemical descriptors and drug-likeness rules."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
-        if mol is None: 
+        if mol is None:
             return None
+            
+        mw = round(Descriptors.MolWt(mol), 2)
+        logp = round(Crippen.MolLogP(mol), 2)
+        tpsa = round(rdMolDescriptors.CalcTPSA(mol), 2)
+        hbd = Lipinski.NumHDonors(mol)
+        hba = Lipinski.NumHAcceptors(mol)
+        rot_bonds = Lipinski.NumRotatableBonds(mol)
+        rings = Lipinski.RingCount(mol)
+        heavy_atoms = mol.GetNumHeavyAtoms()
+        fcsp3 = round(rdMolDescriptors.CalcFractionCSP3(mol), 2)
+        
+        # Check Lipinski rule violations
+        violations = sum([mw > 500, logp > 5, hbd > 5, hba > 10])
+        
         return {
-            "Molecular Weight (g/mol)": round(Descriptors.MolWt(mol), 2),
-            "LogP (Lipophilicity)": round(Crippen.MolLogP(mol), 2),
-            "TPSA (Å²)": round(rdMolDescriptors.CalcTPSA(mol), 2),
-            "H-Bond Donors (HBD)": Lipinski.NumHDonors(mol),
-            "H-Bond Acceptors (HBA)": Lipinski.NumHAcceptors(mol),
-            "Rotatable Bonds": Lipinski.NumRotatableBonds(mol),
-            "Ring Count": Lipinski.RingCount(mol),
-            "Heavy Atom Count": mol.GetNumHeavyAtoms(),
-            "Fraction Csp3": round(rdMolDescriptors.CalcFractionCSP3(mol), 2),
-            "Lipinski Violations": sum([
-                Descriptors.MolWt(mol) > 500, 
-                Crippen.MolLogP(mol) > 5, 
-                Lipinski.NumHDonors(mol) > 5, 
-                Lipinski.NumHAcceptors(mol) > 10
-            ])
+            "Molecular Weight (g/mol)": mw,
+            "LogP (Lipophilicity)": logp,
+            "TPSA (Å²)": tpsa,
+            "H-Bond Donors (HBD)": hbd,
+            "H-Bond Acceptors (HBA)": hba,
+            "Rotatable Bonds": rot_bonds,
+            "Ring Count": rings,
+            "Heavy Atom Count": heavy_atoms,
+            "Fraction Csp3": fcsp3,
+            "Lipinski Violations": violations
         }
     except Exception:
         return None
 
-def compute_dynamic_binding_score(smiles_str, variant_name, pose_index=0):
-    """
-    Computes dynamic binding affinity (kcal/mol) based on ligand 
-    physicochemical properties and target-specific structural affinity.
-    """
+def predict_binding_affinity(smiles_str, variant_name):
+    """Calculates dynamic binding affinity based on ligand descriptors and target variant."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
-            return -7.5, 0.0
+            return -7.5
             
         mw = Descriptors.MolWt(mol)
         logp = Crippen.MolLogP(mol)
         rot_bonds = Lipinski.NumRotatableBonds(mol)
         hba = Lipinski.NumHAcceptors(mol)
         
-        # Dynamic docking score estimation formula
-        base_score = -0.012 * mw - 0.35 * logp + 0.15 * rot_bonds - 0.22 * hba
+        # Dynamic affinity score calculation
+        base_score = -0.012 * mw - 0.30 * logp + 0.12 * rot_bonds - 0.20 * hba
         
         variant_offsets = {
             "EGFR Wild-Type (1M17)": -2.1,
             "EGFR T790M Mutant": -0.8,
-            "EGFR L858R Mutant": -2.5
+            "EGFR L858R Mutant": -2.6
         }
         
-        offset = variant_offsets.get(variant_name, -1.5)
-        pose_penalty = pose_index * 0.65  # Poses 2 and 3 have lower affinity
-        
-        final_score = round(base_score + offset + pose_penalty, 2)
-        rmsd = round(pose_index * 1.42 + (mw % 0.5), 2)
-        
-        return final_score, rmsd
+        final_score = round(base_score + variant_offsets.get(variant_name, -1.5), 2)
+        return final_score
     except Exception:
-        return -7.5, 0.0
+        return -7.5
 
-def generate_docked_poses(smiles_str, variant_name="EGFR Wild-Type (1M17)"):
-    """
-    Generates 3 distinct conformer poses translated to the active site pocket.
-    """
-    try:
-        mol = Chem.MolFromSmiles(smiles_str)
-        if mol is None: 
-            return None
-        mol = Chem.AddHs(mol)
-        
-        # Embed multiple conformers (Top 3 Poses)
-        cids = AllChem.EmbedMultipleConfs(mol, numConfs=3, randomSeed=42)
-        for cid in cids:
-            AllChem.MMFFOptimizeMolecule(mol, confId=cid)
-            
-        center_x, center_y, center_z = BINDING_POCKET_CENTERS.get(variant_name, (22.0, 0.5, 52.5))
-        
-        poses = {}
-        for idx, cid in enumerate(cids):
-            conf = mol.GetConformer(cid)
-            num_atoms = mol.GetNumAtoms()
-            
-            cx = sum(conf.GetAtomPosition(i).x for i in range(num_atoms)) / num_atoms
-            cy = sum(conf.GetAtomPosition(i).y for i in range(num_atoms)) / num_atoms
-            cz = sum(conf.GetAtomPosition(i).z for i in range(num_atoms)) / num_atoms
-            
-            # Translate conformer into active pocket with small structural offset per pose
-            dx = (center_x - cx) + (idx * 0.8)
-            dy = (center_y - cy) + (idx * 0.4)
-            dz = (center_z - cz) - (idx * 0.5)
-            
-            for i in range(num_atoms):
-                pos = conf.GetAtomPosition(i)
-                conf.SetAtomPosition(i, (pos.x + dx, pos.y + dy, pos.z + dz))
-                
-            score, rmsd = compute_dynamic_binding_score(smiles_str, variant_name, idx)
-            poses[f"Pose {idx+1}"] = {
-                "molblock": Chem.MolToMolBlock(mol, confId=cid),
-                "score": score,
-                "rmsd": rmsd
-            }
-            
-        return poses
-    except Exception:
-        return None
+def get_all_variant_scores(smiles_str):
+    """Returns dynamic binding scores across all target variants."""
+    return {
+        "EGFR Wild-Type (1M17)": predict_binding_affinity(smiles_str, "EGFR Wild-Type (1M17)"),
+        "EGFR T790M Mutant": predict_binding_affinity(smiles_str, "EGFR T790M Mutant"),
+        "EGFR L858R Mutant": predict_binding_affinity(smiles_str, "EGFR L858R Mutant")
+    }
 
-def extract_ligand_atoms(smiles_str):
-    """Extracts explicit atom sequence for the interactive ligand panel."""
+def smiles_to_3d_molblock(smiles_str, variant_name="EGFR Wild-Type (1M17)"):
+    """
+    Converts SMILES string into a 3D MolBlock and translates its 
+    centroid into the active binding pocket of the selected EGFR target.
+    """
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
-            return []
+            return None
+        mol = Chem.AddHs(mol)
         
-        atoms = []
-        for atom in mol.GetAtoms():
-            atoms.append({
-                "index": atom.GetIdx(),
-                "symbol": atom.GetSymbol(),
-                "label": f"{atom.GetSymbol()}{atom.GetIdx()+1}"
-            })
-        return atoms
+        # Embed and optimize 3D conformer
+        AllChem.EmbedMolecule(mol, randomSeed=42)
+        AllChem.MMFFOptimizeMolecule(mol)
+        
+        # Get target active site center coordinates
+        center_x, center_y, center_z = BINDING_POCKET_CENTERS.get(
+            variant_name, (22.0, 0.5, 52.5)
+        )
+        
+        # Compute current ligand centroid
+        conf = mol.GetConformer()
+        num_atoms = mol.GetNumAtoms()
+        cx = sum(conf.GetAtomPosition(i).x for i in range(num_atoms)) / num_atoms
+        cy = sum(conf.GetAtomPosition(i).y for i in range(num_atoms)) / num_atoms
+        cz = sum(conf.GetAtomPosition(i).z for i in range(num_atoms)) / num_atoms
+        
+        # Translate ligand into active site pocket
+        dx = center_x - cx
+        dy = center_y - cy
+        dz = center_z - cz
+        
+        for i in range(num_atoms):
+            pos = conf.GetAtomPosition(i)
+            conf.SetAtomPosition(i, (pos.x + dx, pos.y + dy, pos.z + dz))
+            
+        return Chem.MolToMolBlock(mol)
     except Exception:
-        return []
+        return None
 
 def load_receptor_pdb(variant_name):
     """Loads processed receptor file content."""
@@ -177,10 +164,13 @@ def load_receptor_pdb(variant_name):
                 return f.read(), path.split(".")[-1]
     return None, None
 
-def get_receptor_sequence(receptor_data):
-    """Extracts unique residue objects for sequence parsing."""
+def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
+    """Extracts unique amino acid residues and returns formatted HTML sequence string."""
     if not receptor_data:
-        return []
+        return [], ""
+        
+    if highlighted_res_nums is None:
+        highlighted_res_nums = []
         
     seen_residues = set()
     sequence_list = []
@@ -204,4 +194,18 @@ def get_receptor_sequence(receptor_data):
                 continue
                 
     sequence_list.sort(key=lambda x: int(re.sub(r'\D', '', x["res_num"])) if re.sub(r'\D', '', x["res_num"]).isdigit() else 0)
-    return sequence_list 
+    
+    html_spans = []
+    for item in sequence_list:
+        if item["res_num"] in highlighted_res_nums:
+            html_spans.append(
+                f'<span style="background-color: #ff4b4b; color: white; padding: 2px 5px; border-radius: 4px; font-weight: bold; margin: 1px; display: inline-block;" title="{item["label"]}">{item["single"]}</span>'
+            )
+        else:
+            html_spans.append(
+                f'<span style="padding: 2px; color: #333;" title="{item["label"]}">{item["single"]}</span>'
+            )
+            
+    html_sequence = "".join(html_spans)
+    return sequence_list, html_sequence 
+    
