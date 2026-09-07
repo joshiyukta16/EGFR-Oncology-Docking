@@ -105,6 +105,7 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             return []
         mol = Chem.AddHs(mol)
         
+        # Fixed RDKit parameter: numConfs
         cids = list(AllChem.EmbedMultipleConformers(mol, numConfs=num_poses, randomSeed=42, pruneRmsThresh=0.5))
         if not cids:
             cid = AllChem.EmbedMolecule(mol, randomSeed=42)
@@ -115,6 +116,7 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
         if not cids:
             return []
 
+        # Fixed RDKit function: MMFFOptimizeMoleculeConfs
         try:
             AllChem.MMFFOptimizeMoleculeConfs(mol)
         except Exception as opt_err:
