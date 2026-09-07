@@ -66,7 +66,7 @@ st.markdown(f"""
             scroll-behavior: smooth !important; 
         }}
         
-        /* Full Banner Image (Unboxed, Square Edges, Spanning Section) */
+        /* Full Banner Image (Unboxed, Spanning Section) */
         .hero-banner {{
             position: relative;
             width: 100%;
