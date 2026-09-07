@@ -1,5 +1,6 @@
 import base64
 import os
+import re
 import streamlit as st
 import py3Dmol
 import pandas as pd
@@ -69,9 +70,7 @@ def get_image_base64(image_path):
 img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
-# ==========================================
 # 1. HERO COVER BANNER
-# ==========================================
 st.markdown(f"""
     <style>
         html {{ scroll-behavior: smooth !important; }}
@@ -128,9 +127,7 @@ if st.session_state.get("scroll_down", False):
 st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# ==========================================
 # 2. SIDEBAR CONFIGURATION
-# ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -152,9 +149,7 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
-# ==========================================
 # 3. MAIN DASHBOARD TABS
-# ==========================================
 tab1, tab2, tab3, tab4 = st.tabs([
     "3D Docking Viewer & Analysis", 
     "Multi-Candidate Virtual Screening", 
@@ -183,7 +178,7 @@ with tab1:
             horizontal=False
         )
     
-    selected_nums = [re.sub(r'\D', '', r) for r in selected_custom_residues]
+    selected_nums = [re.sub(r'\D', '', r) for r in selected_custom_residues if re.sub(r'\D', '', r)]
     _, html_sequence = get_receptor_sequence(receptor_data, selected_nums) if receptor_data else ([], "")
 
     with st.expander("🔬 View Primary Sequence (Highlighted Residues in Red)", expanded=True):
@@ -197,7 +192,7 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # DOCKING & 3D VIEWING AREA
+    # 3D COMPLEX VIEWING AREA
     if st.session_state["docking_ran"]:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
@@ -231,15 +226,16 @@ with tab1:
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = re.sub(r'\D', '', res_label)
-                    view.addStyle(
-                        {'model': 1, 'resi': str(res_num)},
-                        {'cartoon': {'color': 'red'}}
-                    )
-                    view.addResidueLabel(
-                        {'model': 1, 'resi': str(res_num)},
-                        res_label,
-                        {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
-                    )
+                    if res_num:
+                        view.addStyle(
+                            {'model': 1, 'resi': str(res_num)},
+                            {'cartoon': {'color': 'red'}}
+                        )
+                        view.addResidueLabel(
+                            {'model': 1, 'resi': str(res_num)},
+                            res_label,
+                            {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
+                        )
             
             if st.session_state["complex_spin"]:
                 view.spin(True)
@@ -392,9 +388,7 @@ with tab1:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
         st.dataframe(df_descriptors, use_container_width=True, hide_index=True)
 
-# ==========================================
 # MULTI-LIGAND BATCH SCREENING TAB
-# ==========================================
 with tab2:
     st.subheader("🧪 Multi-Ligand Batch Screening Panel")
     st.write("Input multiple SMILES candidate molecules below to perform parallel docking, rank affinity across target mutants, and switch between screens.")
