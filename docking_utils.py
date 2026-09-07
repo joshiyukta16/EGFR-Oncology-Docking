@@ -1,4 +1,4 @@
-import os
+ import os
 import re
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski, rdMolDescriptors
@@ -95,7 +95,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             return []
         mol = Chem.AddHs(mol)
         
-        # Embed multiple conformers
         cids = AllChem.EmbedMultipleConformers(mol, numConformers=num_poses, randomSeed=42, pruneRmsThresh=0.5)
         res = AllChem.MMFFOptimizeMoleculeConformers(mol)
         
@@ -111,7 +110,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             
             dx, dy, dz = center_x - cx, center_y - cy, center_z - cz
             
-            # Apply slight pose variance shift per conformer
             pose_offset_x = (i - 1) * 0.4
             pose_offset_y = (i - 1) * 0.3
             
