@@ -146,21 +146,24 @@ def smiles_to_3d_molblock(smiles_str, receptor_data=None):
     return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB or PDBQT content from the receptors folder."""
+    """Loads processed receptor PDB or PDBQT content from possible file paths."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
             "receptors/egfr_receptor_1M17.pdb",
+            "egfr_receptor_1M17.pdb",
             "1M17.pdb"
         ],
         "EGFR T790M Mutant": [
             "receptors/egfr_receptor_2ITY.pdbqt", 
             "receptors/egfr_receptor_2ITY.pdb",
+            "egfr_receptor_2ITY.pdb",
             "2ITY.pdb"
         ],
         "EGFR L858R Mutant": [
             "receptors/egfr_receptor_9VOX.pdbqt", 
             "receptors/egfr_receptor_9VOX.pdb",
+            "egfr_receptor_9VOX.pdb",
             "9VOX.pdb"
         ] 
     }
