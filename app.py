@@ -15,8 +15,8 @@ from docking_utils import (
 st.set_page_config(page_title="EGFR Molecular Docking Dashboard", layout="wide")
 
 DEFAULT_SMILES = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
-COVER_IMAGE_URL = "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=1200&q=80"
 
+# Session State Initializations
 if "docking_ran" not in st.session_state:
     st.session_state["docking_ran"] = False
 if "smiles" not in st.session_state:
@@ -38,59 +38,102 @@ if "ligand_zoom" not in st.session_state:
 if "highlight_element" not in st.session_state:
     st.session_state["highlight_element"] = "ALL"
 
+# ==========================================
+# 1. FULL-WIDTH HERO COVER BANNER WITH FLOATING TEXT
+# ==========================================
 st.markdown("""
     <style>
-        html { scroll-behavior: smooth; }
-        .hero-card {
-            background-color: #ffffff;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-            border: 1px solid #e0e0e0;
-            margin-bottom: 25px;
+        /* Smooth page scrolling behavior */
+        html { 
+            scroll-behavior: smooth !important; 
         }
+        
+        /* Full-Width Background Banner using local image from static/ directory */
+        .hero-banner {
+            position: relative;
+            width: 100%;
+            min-height: 440px;
+            background: linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.70)), 
+                        url('/app/static/PyMOL_Surface_Level_Cover.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            margin-bottom: 30px;
+        }
+
+        /* Floating Overlaid Content Box */
+        .hero-content {
+            text-align: center;
+            max-width: 850px;
+            color: #ffffff;
+            z-index: 2;
+        }
+
         .hero-title {
-            font-size: 36px;
-            font-weight: 800;
-            color: #1e293b;
-            margin-bottom: 8px;
+            font-size: 42px;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.85);
         }
+
         .hero-subtitle {
-            font-size: 16px;
-            color: #64748b;
-            margin-bottom: 20px;
+            font-size: 18px;
+            line-height: 1.6;
+            color: #f8fafc;
+            margin-bottom: 28px;
+            font-weight: 400;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+        }
+
+        /* Floating Start Button */
+        .scroll-btn {
+            background: linear-gradient(135deg, #ff4b4b, #d93838);
+            color: #ffffff !important;
+            padding: 16px 36px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 18px;
+            text-decoration: none !important;
+            display: inline-block;
+            box-shadow: 0 6px 20px rgba(255, 75, 75, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .scroll-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 75, 75, 0.6);
         }
     </style>
+
+    <div class="hero-banner">
+        <div class="hero-content">
+            <div class="hero-title">EGFR Molecular Docking Dashboard</div>
+            <div class="hero-subtitle">
+                Interactive structure-based virtual screening platform targeting 
+                EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
+            </div>
+            <a href="#dashboard-main" class="scroll-btn">
+                🚀 Start Docking Analysis
+            </a>
+        </div>
+    </div>
+    
+    <div id="dashboard-main"></div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="hero-card">', unsafe_allow_html=True)
-hero_col1, hero_col2 = st.columns([1.2, 1])
-
-with hero_col1:
-    st.markdown('<div class="hero-title">EGFR Molecular Docking Dashboard</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="hero-subtitle">Interactive structure-based virtual screening platform targeting '
-        'EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).</div>',
-        unsafe_allow_html=True
-    )
-    
-    st.markdown("""
-        <a href="#dashboard-main" style="text-decoration: none;">
-            <div style="background-color: #ff4b4b; color: white; padding: 14px 28px; border-radius: 8px; 
-                        font-weight: bold; font-size: 16px; text-align: center; display: inline-block; 
-                        box-shadow: 0 4px 10px rgba(255, 75, 75, 0.3);">
-                🚀 Start Docking Analysis
-            </div>
-        </a>
-    """, unsafe_allow_html=True)
-
-with hero_col2:
-    st.image(COVER_IMAGE_URL, caption="Protein–Ligand Structural Interaction Interface", width="stretch")
-
-st.markdown('</div>', unsafe_allow_html=True)
-st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
 st.markdown("---")
 
+# ==========================================
+# 2. SIDEBAR CONFIGURATION
+# ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -112,6 +155,9 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
+# ==========================================
+# 3. MAIN DASHBOARD TABS
+# ==========================================
 tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
 
 with tab1:
