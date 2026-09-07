@@ -167,34 +167,47 @@ def smiles_to_3d_molblock(smiles_str, receptor_data=None):
     return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB or PDBQT content from possible file paths."""
+    """Loads processed receptor PDB or PDBQT content, cleaning PDBQT to standard PDB for 3D ribbon rendering."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
             "receptors/egfr_receptor_1M17.pdb",
-            "egfr_receptor_1M17.pdb",
-            "1M17.pdb"
+            "egfr_receptor_1M17.pdbqt",
+            "egfr_receptor_1M17.pdb"
         ],
         "EGFR T790M Mutant": [
             "receptors/egfr_receptor_2ITY.pdbqt", 
             "receptors/egfr_receptor_2ITY.pdb",
-            "egfr_receptor_2ITY.pdb",
-            "2ITY.pdb"
+            "egfr_receptor_2ITY.pdbqt",
+            "egfr_receptor_2ITY.pdb"
         ],
         "EGFR L858R Mutant": [
             "receptors/egfr_receptor_9VOX.pdbqt", 
             "receptors/egfr_receptor_9VOX.pdb",
-            "egfr_receptor_9VOX.pdb",
-            "9VOX.pdb"
+            "egfr_receptor_9VOX.pdbqt",
+            "egfr_receptor_9VOX.pdb"
         ] 
     }
     possible_paths = filename_map.get(variant_name, [])
     for path in possible_paths:
         if os.path.exists(path):
             with open(path, "r") as f:
-                return f.read(), path.split(".")[-1]
+                content = f.read()
+                
+            # Convert PDBQT lines to standard 80-column PDB lines so py3Dmol can draw Cartoon Ribbons
+            cleaned_lines = []
+            for line in content.splitlines():
+                if line.startswith("ATOM") or line.startswith("HETATM"):
+                    # PDB standard line length truncation (first 66 chars retain xyz coords and residue info)
+                    base_line = line[:66]
+                    cleaned_lines.append(base_line.ljust(80))
+                elif line.startswith("TER") or line.startswith("END"):
+                    cleaned_lines.append(line)
+                    
+            return "\n".join(cleaned_lines), "pdb"
+            
     return None, None
-
+    
 def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
     """Extracts unique amino acid residues and returns formatted HTML sequence string with highlights."""
     if not receptor_data:
