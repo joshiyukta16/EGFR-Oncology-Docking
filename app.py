@@ -1,6 +1,6 @@
 import base64
 import os
-import re # FIXED: Added missing re import
+import re
 import streamlit as st
 import py3Dmol
 import pandas as pd
@@ -25,12 +25,13 @@ if "smiles" not in st.session_state:
     st.session_state["smiles"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
 # Multi-Ligand Batch Screening State
-if "batch_smiles" not in st.session_state:
-    st.session_state["batch_smiles"] = [
-        "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl", # Gefitinib
-        "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C",     # Erlotinib
-        "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F" # Osimertinib
-    ]
+if "s1_val" not in st.session_state:
+    st.session_state["s1_val"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl" # Gefitinib
+if "s2_val" not in st.session_state:
+    st.session_state["s2_val"] = "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C"     # Erlotinib
+if "s3_val" not in st.session_state:
+    st.session_state["s3_val"] = "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F" # Osimertinib
+
 if "selected_candidate_idx" not in st.session_state:
     st.session_state["selected_candidate_idx"] = 0
 if "selected_pose_idx" not in st.session_state:
@@ -198,7 +199,7 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # DOCKING & 3D VIEWING AREA
+    # 3D COMPLEX VIEWING AREA
     if st.session_state["docking_ran"]:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
@@ -403,17 +404,19 @@ with tab2:
 
     b_col1, b_col2, b_col3 = st.columns(3)
     with b_col1:
-        s1 = st.text_area("Candidate Screen 1 SMILES:", value=st.session_state["batch_smiles"][0], height=90)
+        s1 = st.text_area("Candidate Screen 1 SMILES:", value=st.session_state["s1_val"], key="s1_input", height=90)
     with b_col2:
-        s2 = st.text_area("Candidate Screen 2 SMILES:", value=st.session_state["batch_smiles"][1], height=90)
+        s2 = st.text_area("Candidate Screen 2 SMILES:", value=st.session_state["s2_val"], key="s2_input", height=90)
     with b_col3:
-        s3 = st.text_area("Candidate Screen 3 SMILES:", value=st.session_state["batch_smiles"][2], height=90)
+        s3 = st.text_area("Candidate Screen 3 SMILES:", value=st.session_state["s3_val"], key="s3_input", height=90)
 
     if st.button("⚡ Run Multi-Candidate Virtual Screen", type="primary"):
-        st.session_state["batch_smiles"] = [s1, s2, s3]
+        st.session_state["s1_val"] = s1
+        st.session_state["s2_val"] = s2
+        st.session_state["s3_val"] = s3
         st.rerun()
 
-    batch_list = st.session_state["batch_smiles"]
+    batch_list = [st.session_state["s1_val"], st.session_state["s2_val"], st.session_state["s3_val"]]
     results_data = []
 
     for idx, sm in enumerate(batch_list, start=1):
@@ -466,7 +469,7 @@ with tab3:
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
-    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), color="lightgreen", use_container_width=True)
+    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
 
 with tab4:
     st.subheader("Target Structure Metadata & Structural Notes")
