@@ -1,6 +1,7 @@
 import base64
 import os
 import streamlit as st
+import streamlit.components.v1 as components
 import py3Dmol
 import pandas as pd
 from docking_utils import (
@@ -14,20 +15,22 @@ from docking_utils import (
     compute_dynamic_binding_score
 )
 
-# 1. SIDEBAR COLLAPSED BY DEFAULT ON LANDING
-st.set_page_config(
-    page_title="EGFR Molecular Docking Dashboard", 
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-DEFAULT_SMILES = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
-
-# Session State Initializations
+# Initialize Session State
+if "sidebar_state" not in st.session_state:
+    st.session_state["sidebar_state"] = "collapsed"
 if "docking_ran" not in st.session_state:
     st.session_state["docking_ran"] = False
 if "smiles" not in st.session_state:
-    st.session_state["smiles"] = DEFAULT_SMILES
+    st.session_state["smiles"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
+
+# Set Page Config with Dynamic Session State
+st.set_page_config(
+    page_title="EGFR Molecular Docking Dashboard", 
+    layout="wide",
+    initial_sidebar_state=st.session_state["sidebar_state"]
+)
+
+DEFAULT_SMILES = st.session_state["smiles"]
 
 if "complex_spin" not in st.session_state:
     st.session_state["complex_spin"] = False
@@ -45,7 +48,6 @@ if "ligand_zoom" not in st.session_state:
 if "highlight_element" not in st.session_state:
     st.session_state["highlight_element"] = "ALL"
 
-# Helper Function: Convert Local Image File to Base64 URI
 def get_image_base64(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
@@ -57,33 +59,31 @@ img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
 # ==========================================
-# 2. FULL HERO BANNER WITH INTEGRATED SIDEBAR TOGGLE & SMOOTH SCROLL
+# 1. HERO COVER BANNER & CUSTOM CSS
 # ==========================================
 st.markdown(f"""
     <style>
-        /* Smooth page scrolling behavior */
         html {{ 
             scroll-behavior: smooth !important; 
         }}
         
-        /* Full Unboxed Banner Image (Edge-to-Edge Spanning) */
         .hero-banner {{
             position: relative;
             width: 100%;
-            min-height: 480px;
+            min-height: 460px;
             background: linear-gradient(rgba(15, 23, 42, 0.40), rgba(15, 23, 42, 0.65)), 
                         url('{bg_image_data}');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 50px 20px;
-            margin-bottom: 35px;
+            margin-bottom: 30px;
         }}
 
-        /* Floating Overlaid Content Box */
         .hero-content {{
             text-align: center;
             max-width: 900px;
@@ -104,51 +104,12 @@ st.markdown(f"""
             font-size: 19px;
             line-height: 1.6;
             color: #f8fafc;
-            margin-bottom: 32px;
+            margin-bottom: 28px;
             font-weight: 400;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
         }}
-
-        /* Floating Start Button */
-        .scroll-btn {{
-            background: linear-gradient(135deg, #ff4b4b, #d93838);
-            color: #ffffff !important;
-            padding: 16px 38px;
-            border-radius: 50px;
-            font-weight: 700;
-            font-size: 18px;
-            text-decoration: none !important;
-            display: inline-block;
-            box-shadow: 0 6px 20px rgba(255, 75, 75, 0.45);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }}
-
-        .scroll-btn:hover {{
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(255, 75, 75, 0.65);
-        }}
     </style>
 
-    <!-- JavaScript function to open sidebar and smoothly scroll down -->
-    <script>
-        function openSidebarAndScroll() {{
-            // 1. Open Streamlit Sidebar if collapsed
-            const sidebarBtn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button') || 
-                               window.parent.document.querySelector('[data-testid="collapsedControl"]');
-            if (sidebarBtn) {{
-                sidebarBtn.click();
-            }}
-            
-            // 2. Smoothly scroll down to dashboard target
-            const target = document.getElementById('dashboard-main');
-            if (target) {{
-                target.scrollIntoView({{ behavior: 'smooth' }});
-            }}
-        }}
-    </script>
-
-    <!-- Hero Cover Banner -->
     <div class="hero-banner">
         <div class="hero-content">
             <div class="hero-title">EGFR Molecular Docking Dashboard</div>
@@ -156,19 +117,35 @@ st.markdown(f"""
                 Interactive structure-based virtual screening platform targeting 
                 EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
             </div>
-            <a onclick="openSidebarAndScroll();" class="scroll-btn">
-                🚀 Start Docking Analysis
-            </a>
         </div>
     </div>
-    
-    <div id="dashboard-main"></div>
 """, unsafe_allow_html=True)
 
+# Native Streamlit Start Button (Triggers State & Smooth Scroll)
+col_a, col_b, col_c = st.columns([1, 1.2, 1])
+with col_b:
+    if st.button("🚀 Start Docking Analysis", type="primary", use_container_width=True):
+        st.session_state["sidebar_state"] = "expanded"
+        st.session_state["scroll_down"] = True
+        st.rerun()
+
+# Smooth Scroll Trigger Execution
+if st.session_state.get("scroll_down", False):
+    st.session_state["scroll_down"] = False
+    components.html(
+        """
+        <script>
+            window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });
+        </script>
+        """,
+        height=0
+    )
+
+st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # ==========================================
-# 3. SIDEBAR CONFIGURATION
+# 2. SIDEBAR CONFIGURATION
 # ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
@@ -192,7 +169,7 @@ if search_query:
         st.sidebar.error("Drug not found on PubChem.")
 
 # ==========================================
-# 4. MAIN DASHBOARD TABS
+# 3. MAIN DASHBOARD TABS
 # ==========================================
 tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
 
@@ -280,24 +257,24 @@ with tab1:
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
                 spin_lbl = "Pause Spin ⏸️" if st.session_state["complex_spin"] else "Toggle Spin 🔄"
-                if st.button(spin_lbl, key="c_spin", width="stretch"):
+                if st.button(spin_lbl, key="c_spin", use_container_width=True):
                     st.session_state["complex_spin"] = not st.session_state["complex_spin"]
                     st.rerun()
             with c_btn2:
                 thm_lbl = "Light Mode ☀️" if st.session_state["complex_dark"] else "Dark Mode 🌙"
-                if st.button(thm_lbl, key="c_dark", width="stretch"):
+                if st.button(thm_lbl, key="c_dark", use_container_width=True):
                     st.session_state["complex_dark"] = not st.session_state["complex_dark"]
                     st.rerun()
             with c_btn3:
-                if st.button("Zoom In 🔍+", key="c_zin", width="stretch"):
+                if st.button("Zoom In 🔍+", key="c_zin", use_container_width=True):
                     st.session_state["complex_zoom"] *= 1.2
                     st.rerun()
             with c_btn4:
-                if st.button("Zoom Out 🔍-", key="c_zout", width="stretch"):
+                if st.button("Zoom Out 🔍-", key="c_zout", use_container_width=True):
                     st.session_state["complex_zoom"] *= 0.8
                     st.rerun()
             with c_btn5:
-                if st.button("Reset View 🎯", key="c_reset", width="stretch"):
+                if st.button("Reset View 🎯", key="c_reset", use_container_width=True):
                     st.session_state["complex_zoom"] = 1.0
                     st.session_state["complex_spin"] = False
                     st.rerun()
@@ -380,24 +357,24 @@ with tab1:
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
                 l_spin_lbl = "Pause ⏸️" if st.session_state["ligand_spin"] else "Spin 🔄"
-                if st.button(l_spin_lbl, key="l_spin", width="stretch"):
+                if st.button(l_spin_lbl, key="l_spin", use_container_width=True):
                     st.session_state["ligand_spin"] = not st.session_state["ligand_spin"]
                     st.rerun()
             with l_btn2:
                 l_thm_lbl = "Light ☀️" if st.session_state["ligand_dark"] else "Dark 🌙"
-                if st.button(l_thm_lbl, key="l_dark", width="stretch"):
+                if st.button(l_thm_lbl, key="l_dark", use_container_width=True):
                     st.session_state["ligand_dark"] = not st.session_state["ligand_dark"]
                     st.rerun()
             with l_btn3:
-                if st.button("In 🔍+", key="l_zin", width="stretch"):
+                if st.button("In 🔍+", key="l_zin", use_container_width=True):
                     st.session_state["ligand_zoom"] *= 1.2
                     st.rerun()
             with l_btn4:
-                if st.button("Out 🔍-", key="l_zout", width="stretch"):
+                if st.button("Out 🔍-", key="l_zout", use_container_width=True):
                     st.session_state["ligand_zoom"] *= 0.8
                     st.rerun()
             with l_btn5:
-                if st.button("Reset 🎯", key="l_reset", width="stretch"):
+                if st.button("Reset 🎯", key="l_reset", use_container_width=True):
                     st.session_state["ligand_zoom"] = 1.0
                     st.session_state["ligand_spin"] = False
                     st.session_state["highlight_element"] = "ALL"
@@ -406,19 +383,19 @@ with tab1:
             st.markdown("<small><b>Interactive Element Filter Badges:</b></small>", unsafe_allow_html=True)
             f_col1, f_col2, f_col3, f_col4 = st.columns(4)
             with f_col1:
-                if st.button("All Atoms", width="stretch"):
+                if st.button("All Atoms", use_container_width=True):
                     st.session_state["highlight_element"] = "ALL"
                     st.rerun()
             with f_col2:
-                if st.button("Nitrogens (N)", width="stretch"):
+                if st.button("Nitrogens (N)", use_container_width=True):
                     st.session_state["highlight_element"] = "NITROGEN"
                     st.rerun()
             with f_col3:
-                if st.button("Oxygens (O)", width="stretch"):
+                if st.button("Oxygens (O)", use_container_width=True):
                     st.session_state["highlight_element"] = "OXYGEN"
                     st.rerun()
             with f_col4:
-                if st.button("Halogens (F/Cl)", width="stretch"):
+                if st.button("Halogens (F/Cl)", use_container_width=True):
                     st.session_state["highlight_element"] = "HALOGEN"
                     st.rerun()
 
@@ -428,14 +405,14 @@ with tab1:
     props = calculate_lipinski_properties(active_smiles)
     if props:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
-        st.dataframe(df_descriptors, width="stretch", hide_index=True)
+        st.dataframe(df_descriptors, use_container_width=True, hide_index=True)
 
 with tab2:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
-    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), width="stretch")
+    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
 
 with tab3:
     st.subheader("Target Structure Metadata & Structural Notes")
