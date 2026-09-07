@@ -103,7 +103,6 @@ st.markdown(f"""
             z-index: 2;
         }}
 
-        /* Floating Bold Interactive Title */
         .floating-hero-title {{
             font-size: 46px;
             font-weight: 900;
@@ -145,7 +144,7 @@ st.markdown(f"""
 # Native Streamlit Start Button
 col_a, col_b, col_c = st.columns([1, 1.2, 1])
 with col_b:
-    if st.button("🚀 Start Docking Analysis", type="primary", use_container_width=True):
+    if st.button("🚀 Start Docking Analysis", type="primary", width="stretch"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
@@ -234,7 +233,6 @@ with tab1:
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
     if st.session_state["docking_ran"]:
-        # Generate Low-Energy Conformers / Poses
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
         if receptor_data and all_poses:
@@ -250,16 +248,13 @@ with tab1:
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
-            # Add Model 0: Ligand Pose
             view.addModel(molblock, "mol")
             view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
             
-            # Add Model 1: Receptor
             fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
             view.addModel(receptor_data, fmt)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # SURFACE LEVEL VISUALIZATION OVERLAYS
             if surface_style == "Transparent Surface":
                 view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
             elif surface_style == "Solid Surface":
@@ -309,24 +304,24 @@ with tab1:
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
                 spin_lbl = "Pause Spin ⏸️" if st.session_state["complex_spin"] else "Toggle Spin 🔄"
-                if st.button(spin_lbl, key="c_spin", use_container_width=True):
+                if st.button(spin_lbl, key="c_spin", width="stretch"):
                     st.session_state["complex_spin"] = not st.session_state["complex_spin"]
                     st.rerun()
             with c_btn2:
                 thm_lbl = "Light Mode ☀️" if st.session_state["complex_dark"] else "Dark Mode 🌙"
-                if st.button(thm_lbl, key="c_dark", use_container_width=True):
+                if st.button(thm_lbl, key="c_dark", width="stretch"):
                     st.session_state["complex_dark"] = not st.session_state["complex_dark"]
                     st.rerun()
             with c_btn3:
-                if st.button("Zoom In 🔍+", key="c_zin", use_container_width=True):
+                if st.button("Zoom In 🔍+", key="c_zin", width="stretch"):
                     st.session_state["complex_zoom"] *= 1.2
                     st.rerun()
             with c_btn4:
-                if st.button("Zoom Out 🔍-", key="c_zout", use_container_width=True):
+                if st.button("Zoom Out 🔍-", key="c_zout", width="stretch"):
                     st.session_state["complex_zoom"] *= 0.8
                     st.rerun()
             with c_btn5:
-                if st.button("Reset View 🎯", key="c_reset", use_container_width=True):
+                if st.button("Reset View 🎯", key="c_reset", width="stretch"):
                     st.session_state["complex_zoom"] = 1.0
                     st.session_state["complex_spin"] = False
                     st.rerun()
@@ -409,24 +404,24 @@ with tab1:
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
                 l_spin_lbl = "Pause ⏸️" if st.session_state["ligand_spin"] else "Spin 🔄"
-                if st.button(l_spin_lbl, key="l_spin", use_container_width=True):
+                if st.button(l_spin_lbl, key="l_spin", width="stretch"):
                     st.session_state["ligand_spin"] = not st.session_state["ligand_spin"]
                     st.rerun()
             with l_btn2:
                 l_thm_lbl = "Light ☀️" if st.session_state["ligand_dark"] else "Dark 🌙"
-                if st.button(l_thm_lbl, key="l_dark", use_container_width=True):
+                if st.button(l_thm_lbl, key="l_dark", width="stretch"):
                     st.session_state["ligand_dark"] = not st.session_state["ligand_dark"]
                     st.rerun()
             with l_btn3:
-                if st.button("In 🔍+", key="l_zin", use_container_width=True):
+                if st.button("In 🔍+", key="l_zin", width="stretch"):
                     st.session_state["ligand_zoom"] *= 1.2
                     st.rerun()
             with l_btn4:
-                if st.button("Out 🔍-", key="l_zout", use_container_width=True):
+                if st.button("Out 🔍-", key="l_zout", width="stretch"):
                     st.session_state["ligand_zoom"] *= 0.8
                     st.rerun()
             with l_btn5:
-                if st.button("Reset 🎯", key="l_reset", use_container_width=True):
+                if st.button("Reset 🎯", key="l_reset", width="stretch"):
                     st.session_state["ligand_zoom"] = 1.0
                     st.session_state["ligand_spin"] = False
                     st.session_state["highlight_element"] = "ALL"
@@ -435,19 +430,19 @@ with tab1:
             st.markdown("<small><b>Interactive Element Filter Badges:</b></small>", unsafe_allow_html=True)
             f_col1, f_col2, f_col3, f_col4 = st.columns(4)
             with f_col1:
-                if st.button("All Atoms", use_container_width=True):
+                if st.button("All Atoms", width="stretch"):
                     st.session_state["highlight_element"] = "ALL"
                     st.rerun()
             with f_col2:
-                if st.button("Nitrogens (N)", use_container_width=True):
+                if st.button("Nitrogens (N)", width="stretch"):
                     st.session_state["highlight_element"] = "NITROGEN"
                     st.rerun()
             with f_col3:
-                if st.button("Oxygens (O)", use_container_width=True):
+                if st.button("Oxygens (O)", width="stretch"):
                     st.session_state["highlight_element"] = "OXYGEN"
                     st.rerun()
             with f_col4:
-                if st.button("Halogens (F/Cl)", use_container_width=True):
+                if st.button("Halogens (F/Cl)", width="stretch"):
                     st.session_state["highlight_element"] = "HALOGEN"
                     st.rerun()
 
@@ -457,7 +452,7 @@ with tab1:
     props = calculate_lipinski_properties(active_smiles)
     if props:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
-        st.dataframe(df_descriptors, use_container_width=True, hide_index=True)
+        st.dataframe(df_descriptors, width="stretch", hide_index=True)
 
 # ==========================================
 # MULTI-LIGAND BATCH SCREENING TAB
@@ -501,7 +496,7 @@ with tab2:
     if results_data:
         df_batch = pd.DataFrame(results_data)
         st.markdown("##### 🏆 Comparative Candidate Ranking")
-        st.dataframe(df_batch.style.highlight_min(subset=["Binding Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
+        st.dataframe(df_batch.style.highlight_min(subset=["Binding Affinity (kcal/mol)"], color="lightgreen"), width="stretch")
 
         st.markdown("---")
         st.markdown("##### 🔍 Inspect Individual Candidate Screen Structure")
@@ -531,7 +526,7 @@ with tab3:
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
-    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
+    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), width="stretch")
 
 with tab4:
     st.subheader("Target Structure Metadata & Structural Notes")
