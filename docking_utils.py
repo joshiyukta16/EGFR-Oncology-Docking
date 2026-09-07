@@ -81,16 +81,12 @@ def generate_standalone_ligand_3d(smiles_str):
         if mol is None:
             return None
         mol = Chem.AddHs(mol)
-        
-        # Fallback embedding strategy
         if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
             AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
-            
         try:
             AllChem.MMFFOptimizeMolecule(mol)
         except Exception:
             pass
-            
         return Chem.MolToMolBlock(mol)
     except Exception:
         return None
@@ -103,7 +99,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             return []
         mol = Chem.AddHs(mol)
         
-        # Embed multiple conformers with fallbacks
         cids = list(AllChem.EmbedMultipleConformers(mol, numConformers=num_poses, randomSeed=42, pruneRmsThresh=0.5))
         if not cids:
             cid = AllChem.EmbedMolecule(mol, randomSeed=42)
@@ -130,7 +125,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             cz = sum(conf.GetAtomPosition(j).z for j in range(num_atoms)) / num_atoms
             
             dx, dy, dz = center_x - cx, center_y - cy, center_z - cz
-            
             pose_offset_x = (i - 1) * 0.4
             pose_offset_y = (i - 1) * 0.3
             
@@ -167,7 +161,7 @@ def smiles_to_3d_molblock(smiles_str, receptor_data=None):
     return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB or PDBQT content, cleaning PDBQT to standard PDB for 3D ribbon rendering."""
+    """Loads processed receptor PDB or PDBQT content and strips extra fields for standard ribbon rendering."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
@@ -193,21 +187,16 @@ def load_receptor_pdb(variant_name):
         if os.path.exists(path):
             with open(path, "r") as f:
                 content = f.read()
-                
-            # Convert PDBQT lines to standard 80-column PDB lines so py3Dmol can draw Cartoon Ribbons
             cleaned_lines = []
             for line in content.splitlines():
                 if line.startswith("ATOM") or line.startswith("HETATM"):
-                    # PDB standard line length truncation (first 66 chars retain xyz coords and residue info)
-                    base_line = line[:66]
-                    cleaned_lines.append(base_line.ljust(80))
+                    cleaned_lines.append(line[:66].ljust(80))
                 elif line.startswith("TER") or line.startswith("END"):
                     cleaned_lines.append(line)
-                    
             return "\n".join(cleaned_lines), "pdb"
             
     return None, None
-    
+
 def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
     """Extracts unique amino acid residues and returns formatted HTML sequence string with highlights."""
     if not receptor_data:

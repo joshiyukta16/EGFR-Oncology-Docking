@@ -69,9 +69,7 @@ def get_image_base64(image_path):
 img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
-# ==========================================
 # 1. FLOATING BOLD TITLE HERO COVER BANNER
-# ==========================================
 st.markdown(f"""
     <style>
         html {{ 
@@ -162,9 +160,7 @@ if st.session_state.get("scroll_down", False):
 st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# ==========================================
 # 2. SIDEBAR CONFIGURATION
-# ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -186,9 +182,7 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
-# ==========================================
 # 3. MAIN DASHBOARD TABS
-# ==========================================
 tab1, tab2, tab3, tab4 = st.tabs([
     "3D Docking Viewer & Analysis", 
     "Multi-Candidate Virtual Screening", 
@@ -453,9 +447,7 @@ with tab1:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
         st.dataframe(df_descriptors, width="stretch", hide_index=True)
 
-# ==========================================
 # MULTI-LIGAND BATCH SCREENING TAB
-# ==========================================
 with tab2:
     st.subheader("🧪 Multi-Ligand Batch Screening Panel")
     st.write("Input multiple SMILES candidate molecules below to perform parallel docking, rank affinity across target mutants, and switch between screens.")
@@ -542,3 +534,4 @@ with tab4:
         "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
         "specifically for molecular docking purposes."
     ) 
+    
