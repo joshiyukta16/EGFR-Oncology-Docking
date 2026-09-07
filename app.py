@@ -1,3 +1,5 @@
+import base64
+import os
 import streamlit as st
 import py3Dmol
 import pandas as pd
@@ -38,23 +40,34 @@ if "ligand_zoom" not in st.session_state:
 if "highlight_element" not in st.session_state:
     st.session_state["highlight_element"] = "ALL"
 
+# Helper Function: Convert Local Image File to Base64 URI
+def get_image_base64(image_path):
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as img_file:
+            encoded = base64.b64encode(img_file.read()).decode()
+            return f"data:image/jpeg;base64,{encoded}"
+    return ""
+
+img_path = "static/PyMOL_Surface_Level_Cover.jpg"
+bg_image_data = get_image_base64(img_path)
+
 # ==========================================
 # 1. FULL-WIDTH HERO COVER BANNER WITH FLOATING TEXT
 # ==========================================
-st.markdown("""
+st.markdown(f"""
     <style>
         /* Smooth page scrolling behavior */
-        html { 
+        html {{ 
             scroll-behavior: smooth !important; 
-        }
+        }}
         
-        /* Full-Width Background Banner using local image from static/ directory */
-        .hero-banner {
+        /* Full-Width Background Banner using Base64 Encoded Image */
+        .hero-banner {{
             position: relative;
             width: 100%;
             min-height: 440px;
-            background: linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.70)), 
-                        url('/app/static/PyMOL_Surface_Level_Cover.jpg');
+            background: linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.65)), 
+                        url('{bg_image_data}');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -65,36 +78,36 @@ st.markdown("""
             padding: 40px 30px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.25);
             margin-bottom: 30px;
-        }
+        }}
 
         /* Floating Overlaid Content Box */
-        .hero-content {
+        .hero-content {{
             text-align: center;
             max-width: 850px;
             color: #ffffff;
             z-index: 2;
-        }
+        }}
 
-        .hero-title {
+        .hero-title {{
             font-size: 42px;
             font-weight: 900;
             color: #ffffff;
             letter-spacing: -0.5px;
             margin-bottom: 12px;
             text-shadow: 0 4px 12px rgba(0, 0, 0, 0.85);
-        }
+        }}
 
-        .hero-subtitle {
+        .hero-subtitle {{
             font-size: 18px;
             line-height: 1.6;
             color: #f8fafc;
             margin-bottom: 28px;
             font-weight: 400;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
-        }
+        }}
 
         /* Floating Start Button */
-        .scroll-btn {
+        .scroll-btn {{
             background: linear-gradient(135deg, #ff4b4b, #d93838);
             color: #ffffff !important;
             padding: 16px 36px;
@@ -105,12 +118,12 @@ st.markdown("""
             display: inline-block;
             box-shadow: 0 6px 20px rgba(255, 75, 75, 0.4);
             transition: all 0.3s ease;
-        }
+        }}
 
-        .scroll-btn:hover {
+        .scroll-btn:hover {{
             transform: translateY(-3px);
             box-shadow: 0 10px 25px rgba(255, 75, 75, 0.6);
-        }
+        }}
     </style>
 
     <div class="hero-banner">
