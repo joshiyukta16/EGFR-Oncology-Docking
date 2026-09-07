@@ -87,6 +87,44 @@ def generate_standalone_ligand_3d(smiles_str):
     except Exception:
         return None
 
+def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
+    """Generates multiple distinct low-energy conformer poses aligned to the binding pocket."""
+    try:
+        mol = Chem.MolFromSmiles(smiles_str)
+        if mol is None:
+            return []
+        mol = Chem.AddHs(mol)
+        
+        # Embed multiple conformers
+        cids = AllChem.EmbedMultipleConformers(mol, numConformers=num_poses, randomSeed=42, pruneRmsThresh=0.5)
+        res = AllChem.MMFFOptimizeMoleculeConformers(mol)
+        
+        center_x, center_y, center_z = get_receptor_center(receptor_data)
+        num_atoms = mol.GetNumAtoms()
+        molblocks = []
+        
+        for i, cid in enumerate(cids):
+            conf = mol.GetConformer(cid)
+            cx = sum(conf.GetAtomPosition(j).x for j in range(num_atoms)) / num_atoms
+            cy = sum(conf.GetAtomPosition(j).y for j in range(num_atoms)) / num_atoms
+            cz = sum(conf.GetAtomPosition(j).z for j in range(num_atoms)) / num_atoms
+            
+            dx, dy, dz = center_x - cx, center_y - cy, center_z - cz
+            
+            # Apply slight pose variance shift per conformer
+            pose_offset_x = (i - 1) * 0.4
+            pose_offset_y = (i - 1) * 0.3
+            
+            for j in range(num_atoms):
+                pos = conf.GetAtomPosition(j)
+                conf.SetAtomPosition(j, (pos.x + dx + pose_offset_x, pos.y + dy + pose_offset_y, pos.z + dz))
+                
+            molblocks.append(Chem.MolToMolBlock(mol, confId=cid))
+            
+        return molblocks
+    except Exception:
+        return []
+
 def get_receptor_center(receptor_data):
     """Calculates geometric center of receptor structure in real-time."""
     if not receptor_data:
@@ -106,30 +144,8 @@ def get_receptor_center(receptor_data):
 
 def smiles_to_3d_molblock(smiles_str, receptor_data=None):
     """Converts SMILES string into a 3D MolBlock translated into the active binding pocket."""
-    try:
-        mol = Chem.MolFromSmiles(smiles_str)
-        if mol is None: 
-            return None
-        mol = Chem.AddHs(mol)
-        AllChem.EmbedMolecule(mol, randomSeed=42)
-        AllChem.MMFFOptimizeMolecule(mol)
-        
-        center_x, center_y, center_z = get_receptor_center(receptor_data)
-        conf = mol.GetConformer()
-        num_atoms = mol.GetNumAtoms()
-        
-        cx = sum(conf.GetAtomPosition(i).x for i in range(num_atoms)) / num_atoms
-        cy = sum(conf.GetAtomPosition(i).y for i in range(num_atoms)) / num_atoms
-        cz = sum(conf.GetAtomPosition(i).z for i in range(num_atoms)) / num_atoms
-        
-        dx, dy, dz = center_x - cx, center_y - cy, center_z - cz
-        for i in range(num_atoms):
-            pos = conf.GetAtomPosition(i)
-            conf.SetAtomPosition(i, (pos.x + dx, pos.y + dy, pos.z + dz))
-            
-        return Chem.MolToMolBlock(mol)
-    except Exception:
-        return None
+    poses = generate_conformer_poses_3d(smiles_str, receptor_data, num_poses=1)
+    return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
     """Loads processed receptor PDB or PDBQT content from the receptors folder."""

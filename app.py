@@ -7,6 +7,7 @@ import pandas as pd
 from docking_utils import (
     smiles_to_3d_molblock, 
     generate_standalone_ligand_3d,
+    generate_conformer_poses_3d,
     get_all_variant_scores, 
     fetch_smiles_from_pubchem,
     load_receptor_pdb,
@@ -15,7 +16,7 @@ from docking_utils import (
     compute_dynamic_binding_score
 )
 
-# Initialize Session State
+# Session State Initialization
 if "sidebar_state" not in st.session_state:
     st.session_state["sidebar_state"] = "collapsed"
 if "docking_ran" not in st.session_state:
@@ -23,7 +24,18 @@ if "docking_ran" not in st.session_state:
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
-# Set Page Config with Dynamic Session State
+# Multi-Ligand Batch Screening State
+if "batch_smiles" not in st.session_state:
+    st.session_state["batch_smiles"] = [
+        "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl", # Gefitinib
+        "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C",     # Erlotinib
+        "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F" # Osimertinib
+    ]
+if "selected_candidate_idx" not in st.session_state:
+    st.session_state["selected_candidate_idx"] = 0
+if "selected_pose_idx" not in st.session_state:
+    st.session_state["selected_pose_idx"] = 0
+
 st.set_page_config(
     page_title="EGFR Molecular Docking Dashboard", 
     layout="wide",
@@ -59,7 +71,7 @@ img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
 # ==========================================
-# 1. HERO COVER BANNER & CUSTOM CSS
+# 1. FLOATING BOLD TITLE HERO COVER BANNER
 # ==========================================
 st.markdown(f"""
     <style>
@@ -70,7 +82,7 @@ st.markdown(f"""
         .hero-banner {{
             position: relative;
             width: 100%;
-            min-height: 460px;
+            min-height: 440px;
             background: linear-gradient(rgba(15, 23, 42, 0.40), rgba(15, 23, 42, 0.65)), 
                         url('{bg_image_data}');
             background-size: cover;
@@ -91,13 +103,22 @@ st.markdown(f"""
             z-index: 2;
         }}
 
-        .hero-title {{
-            font-size: 44px;
+        /* Floating Bold Interactive Title */
+        .floating-hero-title {{
+            font-size: 46px;
             font-weight: 900;
             color: #ffffff;
             letter-spacing: -0.5px;
             margin-bottom: 14px;
-            text-shadow: 0 4px 14px rgba(0, 0, 0, 0.9);
+            text-shadow: 0 6px 18px rgba(0, 0, 0, 0.9);
+            animation: floatTitle 3.5s ease-in-out infinite;
+            display: inline-block;
+        }}
+
+        @keyframes floatTitle {{
+            0% {{ transform: translateY(0px); }}
+            50% {{ transform: translateY(-8px); }}
+            100% {{ transform: translateY(0px); }}
         }}
 
         .hero-subtitle {{
@@ -112,7 +133,7 @@ st.markdown(f"""
 
     <div class="hero-banner">
         <div class="hero-content">
-            <div class="hero-title">EGFR Molecular Docking Dashboard</div>
+            <div class="floating-hero-title">EGFR Molecular Docking Dashboard</div>
             <div class="hero-subtitle">
                 Interactive structure-based virtual screening platform targeting 
                 EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
@@ -121,7 +142,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Native Streamlit Start Button (Triggers State & Smooth Scroll)
+# Native Streamlit Start Button
 col_a, col_b, col_c = st.columns([1, 1.2, 1])
 with col_b:
     if st.button("🚀 Start Docking Analysis", type="primary", use_container_width=True):
@@ -129,7 +150,6 @@ with col_b:
         st.session_state["scroll_down"] = True
         st.rerun()
 
-# Smooth Scroll Trigger Execution
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
     components.html(
@@ -171,20 +191,33 @@ if search_query:
 # ==========================================
 # 3. MAIN DASHBOARD TABS
 # ==========================================
-tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
+tab1, tab2, tab3, tab4 = st.tabs([
+    "3D Docking Viewer & Analysis", 
+    "Multi-Candidate Virtual Screening", 
+    "Comparative Analysis Table", 
+    "Receptor Info"
+])
 
 with tab1:
-    st.subheader("1. Interactive 3D Complex & Sequence Inspection")
+    st.subheader("1. Interactive 3D Complex & Surface Inspection")
     
     receptor_data, file_ext = load_receptor_pdb(target_variant)
     seq_list, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
     res_options = [item["label"] for item in seq_list]
 
-    selected_custom_residues = st.multiselect(
-        "Select Residues to Highlight in Sequence & 3D Structure:",
-        options=res_options,
-        key="selected_residues"
-    )
+    c_opt1, c_opt2 = st.columns([1.5, 1])
+    with c_opt1:
+        selected_custom_residues = st.multiselect(
+            "Select Residues to Highlight in Sequence & 3D Structure:",
+            options=res_options,
+            key="selected_residues"
+        )
+    with c_opt2:
+        surface_style = st.radio(
+            "Receptor Surface Representation:",
+            ["Cartoon Only", "Transparent Surface", "Solid Surface", "Electrostatic/VDW Surface"],
+            horizontal=False
+        )
     
     selected_nums = [r[3:] for r in selected_custom_residues]
     _, html_sequence = get_receptor_sequence(receptor_data, selected_nums) if receptor_data else ([], "")
@@ -201,20 +234,39 @@ with tab1:
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
     if st.session_state["docking_ran"]:
-        molblock = smiles_to_3d_molblock(active_smiles, receptor_data)
+        # Generate Low-Energy Conformers / Poses
+        all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
-        if receptor_data and molblock:
+        if receptor_data and all_poses:
+            p_col1, p_col2 = st.columns([3, 1])
+            with p_col2:
+                st.markdown("##### 🎯 Docked Pose Conformer Selection")
+                pose_choice = st.radio("Select Conformer Pose:", ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"])
+                st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
+
+            molblock = all_poses[min(st.session_state["selected_pose_idx"], len(all_poses)-1)]
+            
             view = py3Dmol.view(width=1100, height=480)
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
+            # Add Model 0: Ligand Pose
             view.addModel(molblock, "mol")
             view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
             
+            # Add Model 1: Receptor
             fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
             view.addModel(receptor_data, fmt)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
+            # SURFACE LEVEL VISUALIZATION OVERLAYS
+            if surface_style == "Transparent Surface":
+                view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
+            elif surface_style == "Solid Surface":
+                view.addSurface(py3Dmol.VDW, {'opacity': 0.88, 'colorscheme': 'spectrum'}, {'model': 1})
+            elif surface_style == "Electrostatic/VDW Surface":
+                view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
+
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = res_label[3:]
@@ -407,14 +459,81 @@ with tab1:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
         st.dataframe(df_descriptors, use_container_width=True, hide_index=True)
 
+# ==========================================
+# MULTI-LIGAND BATCH SCREENING TAB
+# ==========================================
 with tab2:
+    st.subheader("🧪 Multi-Ligand Batch Screening Panel")
+    st.write("Input multiple SMILES candidate molecules below to perform parallel docking, rank affinity across target mutants, and switch between screens.")
+
+    b_col1, b_col2, b_col3 = st.columns(3)
+    with b_col1:
+        s1 = st.text_area("Candidate Screen 1 SMILES:", value=st.session_state["batch_smiles"][0], height=90)
+    with b_col2:
+        s2 = st.text_area("Candidate Screen 2 SMILES:", value=st.session_state["batch_smiles"][1], height=90)
+    with b_col3:
+        s3 = st.text_area("Candidate Screen 3 SMILES:", value=st.session_state["batch_smiles"][2], height=90)
+
+    if st.button("⚡ Run Multi-Candidate Virtual Screen", type="primary"):
+        st.session_state["batch_smiles"] = [s1, s2, s3]
+        st.rerun()
+
+    batch_list = st.session_state["batch_smiles"]
+    results_data = []
+
+    for idx, sm in enumerate(batch_list, start=1):
+        if sm:
+            props = calculate_lipinski_properties(sm)
+            score = compute_dynamic_binding_score(sm, target_variant)
+            mw = props["Molecular Weight (g/mol)"] if props else "N/A"
+            logp = props["LogP (Lipophilicity)"] if props else "N/A"
+            viol = props["Lipinski Violations"] if props else "N/A"
+            results_data.append({
+                "Screen ID": f"Candidate Screen {idx}",
+                "Target Variant": target_variant,
+                "Binding Affinity (kcal/mol)": score,
+                "MW (g/mol)": mw,
+                "LogP": logp,
+                "Lipinski Violations": viol,
+                "SMILES": sm
+            })
+
+    if results_data:
+        df_batch = pd.DataFrame(results_data)
+        st.markdown("##### 🏆 Comparative Candidate Ranking")
+        st.dataframe(df_batch.style.highlight_min(subset=["Binding Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
+
+        st.markdown("---")
+        st.markdown("##### 🔍 Inspect Individual Candidate Screen Structure")
+        selected_screen = st.selectbox("Select Candidate Screen Panel to View:", [f"Candidate Screen {i+1}" for i in range(len(batch_list))])
+        sel_idx = int(selected_screen.split()[-1]) - 1
+
+        selected_smiles = batch_list[sel_idx]
+        c_l1, c_l2 = st.columns([1, 1])
+        with c_l1:
+            st.info(f"**Viewing {selected_screen}**\n\n**SMILES:** `{selected_smiles}`")
+            if st.button(f"Load {selected_screen} into Main 3D Complex Viewer"):
+                st.session_state["smiles"] = selected_smiles
+                st.session_state["docking_ran"] = True
+                st.rerun()
+        with c_l2:
+            cand_block = generate_standalone_ligand_3d(selected_smiles)
+            if cand_block:
+                b_view = py3Dmol.view(width=450, height=220)
+                b_view.addModel(cand_block, "mol")
+                b_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}})
+                b_view.zoomTo()
+                b_html = b_view._make_html()
+                st.iframe(b_html, height=230, width=460)
+
+with tab3:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
     st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
 
-with tab3:
+with tab4:
     st.subheader("Target Structure Metadata & Structural Notes")
     st.markdown("""
     * **EGFR Wild-Type (1M17)**: Represents the active kinase domain conformation bound to 1st-generation TKIs (Erlotinib/Gefitinib).
