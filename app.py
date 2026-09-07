@@ -1,6 +1,6 @@
 import base64
 import os
-import re
+import re # FIXED: Added missing re import
 import streamlit as st
 import py3Dmol
 import pandas as pd
@@ -70,7 +70,9 @@ def get_image_base64(image_path):
 img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
+# ==========================================
 # 1. HERO COVER BANNER
+# ==========================================
 st.markdown(f"""
     <style>
         html {{ scroll-behavior: smooth !important; }}
@@ -127,7 +129,9 @@ if st.session_state.get("scroll_down", False):
 st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
 st.markdown("---")
 
+# ==========================================
 # 2. SIDEBAR CONFIGURATION
+# ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -149,7 +153,9 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
+# ==========================================
 # 3. MAIN DASHBOARD TABS
+# ==========================================
 tab1, tab2, tab3, tab4 = st.tabs([
     "3D Docking Viewer & Analysis", 
     "Multi-Candidate Virtual Screening", 
@@ -192,7 +198,7 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # 3D COMPLEX VIEWING AREA
+    # DOCKING & 3D VIEWING AREA
     if st.session_state["docking_ran"]:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
@@ -388,7 +394,9 @@ with tab1:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
         st.dataframe(df_descriptors, use_container_width=True, hide_index=True)
 
+# ==========================================
 # MULTI-LIGAND BATCH SCREENING TAB
+# ==========================================
 with tab2:
     st.subheader("🧪 Multi-Ligand Batch Screening Panel")
     st.write("Input multiple SMILES candidate molecules below to perform parallel docking, rank affinity across target mutants, and switch between screens.")
@@ -458,7 +466,7 @@ with tab3:
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
-    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
+    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), color="lightgreen", use_container_width=True)
 
 with tab4:
     st.subheader("Target Structure Metadata & Structural Notes")
