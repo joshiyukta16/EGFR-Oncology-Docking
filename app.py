@@ -70,20 +70,16 @@ img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
 # ==========================================
-# 1. FLOATING BOLD TITLE HERO COVER BANNER
+# 1. HERO COVER BANNER
 # ==========================================
 st.markdown(f"""
     <style>
-        html {{ 
-            scroll-behavior: smooth !important; 
-        }}
-        
+        html {{ scroll-behavior: smooth !important; }}
         .hero-banner {{
             position: relative;
             width: 100%;
             min-height: 440px;
-            background: linear-gradient(rgba(15, 23, 42, 0.40), rgba(15, 23, 42, 0.65)), 
-                        url('{bg_image_data}');
+            background: linear-gradient(rgba(15, 23, 42, 0.40), rgba(15, 23, 42, 0.65)), url('{bg_image_data}');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -94,41 +90,16 @@ st.markdown(f"""
             padding: 50px 20px;
             margin-bottom: 30px;
         }}
-
-        .hero-content {{
-            text-align: center;
-            max-width: 900px;
-            color: #ffffff;
-            z-index: 2;
-        }}
-
+        .hero-content {{ text-align: center; max-width: 900px; color: #ffffff; z-index: 2; }}
         .floating-hero-title {{
-            font-size: 46px;
-            font-weight: 900;
-            color: #ffffff;
-            letter-spacing: -0.5px;
-            margin-bottom: 14px;
-            text-shadow: 0 6px 18px rgba(0, 0, 0, 0.9);
-            animation: floatTitle 3.5s ease-in-out infinite;
-            display: inline-block;
+            font-size: 46px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; margin-bottom: 14px;
+            text-shadow: 0 6px 18px rgba(0, 0, 0, 0.9); display: inline-block;
         }}
-
-        @keyframes floatTitle {{
-            0% {{ transform: translateY(0px); }}
-            50% {{ transform: translateY(-8px); }}
-            100% {{ transform: translateY(0px); }}
-        }}
-
         .hero-subtitle {{
-            font-size: 19px;
-            line-height: 1.6;
-            color: #f8fafc;
-            margin-bottom: 28px;
-            font-weight: 400;
+            font-size: 19px; line-height: 1.6; color: #f8fafc; margin-bottom: 28px; font-weight: 400;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
         }}
     </style>
-
     <div class="hero-banner">
         <div class="hero-content">
             <div class="floating-hero-title">EGFR Molecular Docking Dashboard</div>
@@ -140,10 +111,9 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Native Streamlit Start Button
 col_a, col_b, col_c = st.columns([1, 1.2, 1])
 with col_b:
-    if st.button("🚀 Start Docking Analysis", type="primary", width="stretch"):
+    if st.button("🚀 Start Docking Analysis", type="primary"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
@@ -151,11 +121,7 @@ with col_b:
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
     st.components.v1.html(
-        """
-        <script>
-            window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });
-        </script>
-        """,
+        "<script>window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });</script>",
         height=0
     )
 
@@ -217,7 +183,7 @@ with tab1:
             horizontal=False
         )
     
-    selected_nums = [r[3:] for r in selected_custom_residues]
+    selected_nums = [re.sub(r'\D', '', r) for r in selected_custom_residues]
     _, html_sequence = get_receptor_sequence(receptor_data, selected_nums) if receptor_data else ([], "")
 
     with st.expander("🔬 View Primary Sequence (Highlighted Residues in Red)", expanded=True):
@@ -231,17 +197,19 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
+    # DOCKING & 3D VIEWING AREA
     if st.session_state["docking_ran"]:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
-        if receptor_data and all_poses:
+        if receptor_data and len(all_poses) > 0:
             p_col1, p_col2 = st.columns([3, 1])
             with p_col2:
                 st.markdown("##### 🎯 Docked Pose Conformer Selection")
                 pose_choice = st.radio("Select Conformer Pose:", ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"])
                 st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
 
-            molblock = all_poses[min(st.session_state["selected_pose_idx"], len(all_poses)-1)]
+            idx = min(st.session_state["selected_pose_idx"], len(all_poses)-1)
+            molblock = all_poses[idx]
             
             view = py3Dmol.view(width=1100, height=480)
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
@@ -250,8 +218,7 @@ with tab1:
             view.addModel(molblock, "mol")
             view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
             
-            fmt = "pdbqt" if file_ext == "pdbqt" else "pdb"
-            view.addModel(receptor_data, fmt)
+            view.addModel(receptor_data, file_ext)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
             if surface_style == "Transparent Surface":
@@ -263,7 +230,7 @@ with tab1:
 
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
-                    res_num = res_label[3:]
+                    res_num = re.sub(r'\D', '', res_label)
                     view.addStyle(
                         {'model': 1, 'resi': str(res_num)},
                         {'cartoon': {'color': 'red'}}
@@ -273,20 +240,6 @@ with tab1:
                         res_label,
                         {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                     )
-            
-            view.setClickable(
-                {'model': 1},
-                True,
-                """
-                function(atom, viewer, event, container) {
-                    if(atom && atom.resn && atom.resi) {
-                        var tag = atom.resn + atom.resi;
-                        viewer.addResidueLabel({'resi': atom.resi}, tag, {fontColor: 'black', backgroundColor: 'yellow'});
-                        viewer.render();
-                    }
-                }
-                """
-            )
             
             if st.session_state["complex_spin"]:
                 view.spin(True)
@@ -303,24 +256,24 @@ with tab1:
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
                 spin_lbl = "Pause Spin ⏸️" if st.session_state["complex_spin"] else "Toggle Spin 🔄"
-                if st.button(spin_lbl, key="c_spin", width="stretch"):
+                if st.button(spin_lbl, key="c_spin"):
                     st.session_state["complex_spin"] = not st.session_state["complex_spin"]
                     st.rerun()
             with c_btn2:
                 thm_lbl = "Light Mode ☀️" if st.session_state["complex_dark"] else "Dark Mode 🌙"
-                if st.button(thm_lbl, key="c_dark", width="stretch"):
+                if st.button(thm_lbl, key="c_dark"):
                     st.session_state["complex_dark"] = not st.session_state["complex_dark"]
                     st.rerun()
             with c_btn3:
-                if st.button("Zoom In 🔍+", key="c_zin", width="stretch"):
+                if st.button("Zoom In 🔍+", key="c_zin"):
                     st.session_state["complex_zoom"] *= 1.2
                     st.rerun()
             with c_btn4:
-                if st.button("Zoom Out 🔍-", key="c_zout", width="stretch"):
+                if st.button("Zoom Out 🔍-", key="c_zout"):
                     st.session_state["complex_zoom"] *= 0.8
                     st.rerun()
             with c_btn5:
-                if st.button("Reset View 🎯", key="c_reset", width="stretch"):
+                if st.button("Reset View 🎯", key="c_reset"):
                     st.session_state["complex_zoom"] = 1.0
                     st.session_state["complex_spin"] = False
                     st.rerun()
@@ -374,20 +327,6 @@ with tab1:
             else:
                 l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}, 'sphere': {'radius': 0.3}})
             
-            l_view.setClickable(
-                {},
-                True,
-                """
-                function(atom, viewer, event, container) {
-                    if(atom) {
-                        var lbl = (atom.elem || 'Atom') + ' (Idx: ' + atom.serial + ')';
-                        viewer.addLabel(lbl, {position: {x: atom.x, y: atom.y, z: atom.z}, backgroundColor: 'black', fontColor: 'white'});
-                        viewer.render();
-                    }
-                }
-                """
-            )
-            
             if st.session_state["ligand_spin"]:
                 l_view.spin(True)
             else:
@@ -403,24 +342,24 @@ with tab1:
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
                 l_spin_lbl = "Pause ⏸️" if st.session_state["ligand_spin"] else "Spin 🔄"
-                if st.button(l_spin_lbl, key="l_spin", width="stretch"):
+                if st.button(l_spin_lbl, key="l_spin"):
                     st.session_state["ligand_spin"] = not st.session_state["ligand_spin"]
                     st.rerun()
             with l_btn2:
                 l_thm_lbl = "Light ☀️" if st.session_state["ligand_dark"] else "Dark 🌙"
-                if st.button(l_thm_lbl, key="l_dark", width="stretch"):
+                if st.button(l_thm_lbl, key="l_dark"):
                     st.session_state["ligand_dark"] = not st.session_state["ligand_dark"]
                     st.rerun()
             with l_btn3:
-                if st.button("In 🔍+", key="l_zin", width="stretch"):
+                if st.button("In 🔍+", key="l_zin"):
                     st.session_state["ligand_zoom"] *= 1.2
                     st.rerun()
             with l_btn4:
-                if st.button("Out 🔍-", key="l_zout", width="stretch"):
+                if st.button("Out 🔍-", key="l_zout"):
                     st.session_state["ligand_zoom"] *= 0.8
                     st.rerun()
             with l_btn5:
-                if st.button("Reset 🎯", key="l_reset", width="stretch"):
+                if st.button("Reset 🎯", key="l_reset"):
                     st.session_state["ligand_zoom"] = 1.0
                     st.session_state["ligand_spin"] = False
                     st.session_state["highlight_element"] = "ALL"
@@ -429,19 +368,19 @@ with tab1:
             st.markdown("<small><b>Interactive Element Filter Badges:</b></small>", unsafe_allow_html=True)
             f_col1, f_col2, f_col3, f_col4 = st.columns(4)
             with f_col1:
-                if st.button("All Atoms", width="stretch"):
+                if st.button("All Atoms"):
                     st.session_state["highlight_element"] = "ALL"
                     st.rerun()
             with f_col2:
-                if st.button("Nitrogens (N)", width="stretch"):
+                if st.button("Nitrogens (N)"):
                     st.session_state["highlight_element"] = "NITROGEN"
                     st.rerun()
             with f_col3:
-                if st.button("Oxygens (O)", width="stretch"):
+                if st.button("Oxygens (O)"):
                     st.session_state["highlight_element"] = "OXYGEN"
                     st.rerun()
             with f_col4:
-                if st.button("Halogens (F/Cl)", width="stretch"):
+                if st.button("Halogens (F/Cl)"):
                     st.session_state["highlight_element"] = "HALOGEN"
                     st.rerun()
 
@@ -451,9 +390,11 @@ with tab1:
     props = calculate_lipinski_properties(active_smiles)
     if props:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
-        st.dataframe(df_descriptors, width="stretch", hide_index=True)
+        st.dataframe(df_descriptors, use_container_width=True, hide_index=True)
 
+# ==========================================
 # MULTI-LIGAND BATCH SCREENING TAB
+# ==========================================
 with tab2:
     st.subheader("🧪 Multi-Ligand Batch Screening Panel")
     st.write("Input multiple SMILES candidate molecules below to perform parallel docking, rank affinity across target mutants, and switch between screens.")
@@ -493,7 +434,7 @@ with tab2:
     if results_data:
         df_batch = pd.DataFrame(results_data)
         st.markdown("##### 🏆 Comparative Candidate Ranking")
-        st.dataframe(df_batch.style.highlight_min(subset=["Binding Affinity (kcal/mol)"], color="lightgreen"), width="stretch")
+        st.dataframe(df_batch.style.highlight_min(subset=["Binding Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
 
         st.markdown("---")
         st.markdown("##### 🔍 Inspect Individual Candidate Screen Structure")
@@ -523,7 +464,7 @@ with tab3:
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
-    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), width="stretch")
+    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
 
 with tab4:
     st.subheader("Target Structure Metadata & Structural Notes")
@@ -540,4 +481,3 @@ with tab4:
         "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
         "specifically for molecular docking purposes."
     ) 
-    

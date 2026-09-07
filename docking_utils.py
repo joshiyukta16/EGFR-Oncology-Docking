@@ -85,7 +85,8 @@ def generate_standalone_ligand_3d(smiles_str):
         if mol is None:
             return None
         mol = Chem.AddHs(mol)
-        if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
+        res = AllChem.EmbedMolecule(mol, randomSeed=42)
+        if res != 0:
             AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
         try:
             AllChem.MMFFOptimizeMolecule(mol)
@@ -104,7 +105,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             return []
         mol = Chem.AddHs(mol)
         
-        # Fixed parameter keyword: numConfs
         cids = list(AllChem.EmbedMultipleConformers(mol, numConfs=num_poses, randomSeed=42, pruneRmsThresh=0.5))
         if not cids:
             cid = AllChem.EmbedMolecule(mol, randomSeed=42)
@@ -115,7 +115,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
         if not cids:
             return []
 
-        # Fixed method name: MMFFOptimizeMoleculeConfs
         try:
             AllChem.MMFFOptimizeMoleculeConfs(mol)
         except Exception as opt_err:
@@ -170,7 +169,7 @@ def smiles_to_3d_molblock(smiles_str, receptor_data=None):
     return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB or PDBQT content and returns true file extension."""
+    """Loads processed receptor PDB or PDBQT content and returns content along with actual extension."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
@@ -203,7 +202,6 @@ def load_receptor_pdb(variant_name):
                 elif line.startswith("TER") or line.startswith("END"):
                     cleaned_lines.append(line)
             
-            # Dynamic detection of actual file format extension
             ext = "pdbqt" if path.endswith(".pdbqt") else "pdb"
             return "\n".join(cleaned_lines), ext
             
