@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski, rdMolDescriptors
 import pubchempy as pcp
@@ -16,7 +17,8 @@ def fetch_smiles_from_pubchem(drug_name):
     try:
         compounds = pcp.get_compounds(drug_name, 'name')
         return compounds[0].connectivity_smiles if compounds else None
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG fetch_smiles] {e}", file=sys.stderr)
         return None
 
 def calculate_lipinski_properties(smiles_str):
@@ -42,7 +44,8 @@ def calculate_lipinski_properties(smiles_str):
                 Lipinski.NumHAcceptors(mol) > 10
             ])
         }
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG Lipinski] {e}", file=sys.stderr)
         return None
 
 def compute_dynamic_binding_score(smiles_str, variant_name):
@@ -63,7 +66,8 @@ def compute_dynamic_binding_score(smiles_str, variant_name):
             "EGFR L858R Mutant": -2.5
         }
         return round(base_score + offsets.get(variant_name, -1.5), 2)
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG binding_score] {e}", file=sys.stderr)
         return -7.50
 
 def get_all_variant_scores(smiles_str):
@@ -88,7 +92,8 @@ def generate_standalone_ligand_3d(smiles_str):
         except Exception:
             pass
         return Chem.MolToMolBlock(mol)
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG standalone_3d] {e}", file=sys.stderr)
         return None
 
 def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
@@ -99,7 +104,8 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             return []
         mol = Chem.AddHs(mol)
         
-        cids = list(AllChem.EmbedMultipleConformers(mol, numConformers=num_poses, randomSeed=42, pruneRmsThresh=0.5))
+        # Fixed parameter keyword: numConfs
+        cids = list(AllChem.EmbedMultipleConformers(mol, numConfs=num_poses, randomSeed=42, pruneRmsThresh=0.5))
         if not cids:
             cid = AllChem.EmbedMolecule(mol, randomSeed=42)
             if cid == -1:
@@ -109,9 +115,11 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
         if not cids:
             return []
 
+        # Fixed method name: MMFFOptimizeMoleculeConfs
         try:
-            AllChem.MMFFOptimizeMoleculeConformers(mol)
-        except Exception:
+            AllChem.MMFFOptimizeMoleculeConfs(mol)
+        except Exception as opt_err:
+            print(f"[DEBUG MMFFConfs] {opt_err}", file=sys.stderr)
             pass
             
         center_x, center_y, center_z = get_receptor_center(receptor_data)
@@ -135,7 +143,8 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             molblocks.append(Chem.MolToMolBlock(mol, confId=cid))
             
         return molblocks
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG generate_conformer_poses_3d] Error: {e}", file=sys.stderr)
         return []
 
 def get_receptor_center(receptor_data):
@@ -161,7 +170,7 @@ def smiles_to_3d_molblock(smiles_str, receptor_data=None):
     return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB or PDBQT content and strips extra fields for standard ribbon rendering."""
+    """Loads processed receptor PDB or PDBQT content and returns true file extension."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
@@ -193,8 +202,12 @@ def load_receptor_pdb(variant_name):
                     cleaned_lines.append(line[:66].ljust(80))
                 elif line.startswith("TER") or line.startswith("END"):
                     cleaned_lines.append(line)
-            return "\n".join(cleaned_lines), "pdb"
             
+            # Dynamic detection of actual file format extension
+            ext = "pdbqt" if path.endswith(".pdbqt") else "pdb"
+            return "\n".join(cleaned_lines), ext
+            
+    print(f"[DEBUG load_receptor_pdb] Failed to find receptor for {variant_name}", file=sys.stderr)
     return None, None
 
 def get_receptor_sequence(receptor_data, highlighted_res_nums=None):

@@ -69,7 +69,9 @@ def get_image_base64(image_path):
 img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
+# ==========================================
 # 1. FLOATING BOLD TITLE HERO COVER BANNER
+# ==========================================
 st.markdown(f"""
     <style>
         html {{ 
@@ -160,7 +162,9 @@ if st.session_state.get("scroll_down", False):
 st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
 st.markdown("---")
 
+# ==========================================
 # 2. SIDEBAR CONFIGURATION
+# ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
@@ -182,7 +186,9 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
+# ==========================================
 # 3. MAIN DASHBOARD TABS
+# ==========================================
 tab1, tab2, tab3, tab4 = st.tabs([
     "3D Docking Viewer & Analysis", 
     "Multi-Candidate Virtual Screening", 
