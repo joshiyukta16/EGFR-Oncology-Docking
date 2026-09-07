@@ -14,7 +14,12 @@ from docking_utils import (
     compute_dynamic_binding_score
 )
 
-st.set_page_config(page_title="EGFR Molecular Docking Dashboard", layout="wide")
+# 1. COLLAPSE SIDEBAR BY DEFAULT
+st.set_page_config(
+    page_title="EGFR Molecular Docking Dashboard", 
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 DEFAULT_SMILES = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
@@ -52,7 +57,7 @@ img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
 # ==========================================
-# 1. FULL-WIDTH HERO COVER BANNER WITH FLOATING TEXT
+# 2. FULL HERO BANNER, SMOOTH SCROLL, & SIDEBAR HINT
 # ==========================================
 st.markdown(f"""
     <style>
@@ -61,71 +66,99 @@ st.markdown(f"""
             scroll-behavior: smooth !important; 
         }}
         
-        /* Full-Width Background Banner using Base64 Encoded Image */
+        /* Full Banner Image (Unboxed, Square Edges, Spanning Section) */
         .hero-banner {{
             position: relative;
             width: 100%;
-            min-height: 440px;
-            background: linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.65)), 
+            min-height: 480px;
+            background: linear-gradient(rgba(15, 23, 42, 0.40), rgba(15, 23, 42, 0.65)), 
                         url('{bg_image_data}');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-            margin-bottom: 30px;
+            padding: 50px 20px;
+            margin-bottom: 35px;
         }}
 
         /* Floating Overlaid Content Box */
         .hero-content {{
             text-align: center;
-            max-width: 850px;
+            max-width: 900px;
             color: #ffffff;
             z-index: 2;
         }}
 
         .hero-title {{
-            font-size: 42px;
+            font-size: 44px;
             font-weight: 900;
             color: #ffffff;
             letter-spacing: -0.5px;
-            margin-bottom: 12px;
-            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.85);
+            margin-bottom: 14px;
+            text-shadow: 0 4px 14px rgba(0, 0, 0, 0.9);
         }}
 
         .hero-subtitle {{
-            font-size: 18px;
+            font-size: 19px;
             line-height: 1.6;
             color: #f8fafc;
-            margin-bottom: 28px;
+            margin-bottom: 32px;
             font-weight: 400;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
         }}
 
-        /* Floating Start Button */
+        /* Start Button */
         .scroll-btn {{
             background: linear-gradient(135deg, #ff4b4b, #d93838);
             color: #ffffff !important;
-            padding: 16px 36px;
+            padding: 16px 38px;
             border-radius: 50px;
             font-weight: 700;
             font-size: 18px;
             text-decoration: none !important;
             display: inline-block;
-            box-shadow: 0 6px 20px rgba(255, 75, 75, 0.4);
+            box-shadow: 0 6px 20px rgba(255, 75, 75, 0.45);
             transition: all 0.3s ease;
+            cursor: pointer;
         }}
 
         .scroll-btn:hover {{
             transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(255, 75, 75, 0.6);
+            box-shadow: 0 10px 25px rgba(255, 75, 75, 0.65);
+        }}
+
+        /* Animated Floating Sidebar Prompt */
+        .sidebar-hint {{
+            position: fixed;
+            top: 75px;
+            left: 20px;
+            z-index: 999999;
+            background: rgba(255, 75, 75, 0.95);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.5);
+            animation: pulse-animation 2s infinite;
+            pointer-events: none;
+        }}
+
+        @keyframes pulse-animation {{
+            0% {{ transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }}
+            70% {{ transform: scale(1.05); box-shadow: 0 0 0 12px rgba(255, 75, 75, 0); }}
+            100% {{ transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }}
         }}
     </style>
 
+    <!-- Floating Notice to Click Side Panel -->
+    <div class="sidebar-hint">
+        👈 Click arrow on the side panel to start docking
+    </div>
+
+    <!-- Hero Banner -->
     <div class="hero-banner">
         <div class="hero-content">
             <div class="hero-title">EGFR Molecular Docking Dashboard</div>
@@ -133,7 +166,7 @@ st.markdown(f"""
                 Interactive structure-based virtual screening platform targeting 
                 EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
             </div>
-            <a href="#dashboard-main" class="scroll-btn">
+            <a onclick="document.getElementById('dashboard-main').scrollIntoView({{ behavior: 'smooth' }});" class="scroll-btn">
                 🚀 Start Docking Analysis
             </a>
         </div>
@@ -145,7 +178,7 @@ st.markdown(f"""
 st.markdown("---")
 
 # ==========================================
-# 2. SIDEBAR CONFIGURATION
+# 3. SIDEBAR CONFIGURATION
 # ==========================================
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
@@ -169,7 +202,7 @@ if search_query:
         st.sidebar.error("Drug not found on PubChem.")
 
 # ==========================================
-# 3. MAIN DASHBOARD TABS
+# 4. MAIN DASHBOARD TABS
 # ==========================================
 tab1, tab2, tab3 = st.tabs(["3D Docking Viewer & Analysis", "Comparative Analysis Table", "Receptor Info"])
 
