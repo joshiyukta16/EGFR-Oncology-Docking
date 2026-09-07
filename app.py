@@ -1,7 +1,6 @@
 import base64
 import os
 import streamlit as st
-import streamlit.components.v1 as components
 import py3Dmol
 import pandas as pd
 from docking_utils import (
@@ -151,7 +150,7 @@ with col_b:
 
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
-    components.html(
+    st.components.v1.html(
         """
         <script>
             window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });
@@ -299,7 +298,7 @@ with tab1:
                 view.zoom(st.session_state["complex_zoom"])
                 
             html_content = view._make_html()
-            st.iframe(html_content, height=490, width=1120)
+            st.components.v1.html(html_content, height=490, width=1120)
             
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
@@ -399,7 +398,7 @@ with tab1:
                 l_view.zoom(st.session_state["ligand_zoom"])
                 
             l_html = l_view._make_html()
-            st.iframe(l_html, height=310, width=550)
+            st.components.v1.html(l_html, height=310, width=550)
             
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
@@ -519,7 +518,7 @@ with tab2:
                 b_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}})
                 b_view.zoomTo()
                 b_html = b_view._make_html()
-                st.iframe(b_html, height=230, width=460)
+                st.components.v1.html(b_html, height=230, width=460)
 
 with tab3:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
