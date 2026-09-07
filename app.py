@@ -14,7 +14,7 @@ from docking_utils import (
     compute_dynamic_binding_score
 )
 
-# 1. COLLAPSE SIDEBAR BY DEFAULT
+# 1. SIDEBAR COLLAPSED BY DEFAULT ON LANDING
 st.set_page_config(
     page_title="EGFR Molecular Docking Dashboard", 
     layout="wide",
@@ -57,7 +57,7 @@ img_path = "static/PyMOL_Surface_Level_Cover.jpg"
 bg_image_data = get_image_base64(img_path)
 
 # ==========================================
-# 2. FULL HERO BANNER, SMOOTH SCROLL, & SIDEBAR HINT
+# 2. FULL HERO BANNER WITH INTEGRATED SIDEBAR TOGGLE & SMOOTH SCROLL
 # ==========================================
 st.markdown(f"""
     <style>
@@ -66,7 +66,7 @@ st.markdown(f"""
             scroll-behavior: smooth !important; 
         }}
         
-        /* Full Banner Image (Unboxed, Spanning Section) */
+        /* Full Unboxed Banner Image (Edge-to-Edge Spanning) */
         .hero-banner {{
             position: relative;
             width: 100%;
@@ -109,7 +109,7 @@ st.markdown(f"""
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
         }}
 
-        /* Start Button */
+        /* Floating Start Button */
         .scroll-btn {{
             background: linear-gradient(135deg, #ff4b4b, #d93838);
             color: #ffffff !important;
@@ -128,37 +128,27 @@ st.markdown(f"""
             transform: translateY(-3px);
             box-shadow: 0 10px 25px rgba(255, 75, 75, 0.65);
         }}
-
-        /* Animated Floating Sidebar Prompt */
-        .sidebar-hint {{
-            position: fixed;
-            top: 75px;
-            left: 20px;
-            z-index: 999999;
-            background: rgba(255, 75, 75, 0.95);
-            color: white;
-            padding: 10px 18px;
-            border-radius: 30px;
-            font-weight: 700;
-            font-size: 14px;
-            box-shadow: 0 4px 15px rgba(255, 75, 75, 0.5);
-            animation: pulse-animation 2s infinite;
-            pointer-events: none;
-        }}
-
-        @keyframes pulse-animation {{
-            0% {{ transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }}
-            70% {{ transform: scale(1.05); box-shadow: 0 0 0 12px rgba(255, 75, 75, 0); }}
-            100% {{ transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }}
-        }}
     </style>
 
-    <!-- Floating Notice to Click Side Panel -->
-    <div class="sidebar-hint">
-        👈 Click arrow on the side panel to start docking
-    </div>
+    <!-- JavaScript function to open sidebar and smoothly scroll down -->
+    <script>
+        function openSidebarAndScroll() {{
+            // 1. Open Streamlit Sidebar if collapsed
+            const sidebarBtn = window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"] button') || 
+                               window.parent.document.querySelector('[data-testid="collapsedControl"]');
+            if (sidebarBtn) {{
+                sidebarBtn.click();
+            }}
+            
+            // 2. Smoothly scroll down to dashboard target
+            const target = document.getElementById('dashboard-main');
+            if (target) {{
+                target.scrollIntoView({{ behavior: 'smooth' }});
+            }}
+        }}
+    </script>
 
-    <!-- Hero Banner -->
+    <!-- Hero Cover Banner -->
     <div class="hero-banner">
         <div class="hero-content">
             <div class="hero-title">EGFR Molecular Docking Dashboard</div>
@@ -166,7 +156,7 @@ st.markdown(f"""
                 Interactive structure-based virtual screening platform targeting 
                 EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
             </div>
-            <a onclick="document.getElementById('dashboard-main').scrollIntoView({{ behavior: 'smooth' }});" class="scroll-btn">
+            <a onclick="openSidebarAndScroll();" class="scroll-btn">
                 🚀 Start Docking Analysis
             </a>
         </div>
