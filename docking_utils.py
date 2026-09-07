@@ -81,8 +81,16 @@ def generate_standalone_ligand_3d(smiles_str):
         if mol is None:
             return None
         mol = Chem.AddHs(mol)
-        AllChem.EmbedMolecule(mol, randomSeed=42)
-        AllChem.MMFFOptimizeMolecule(mol)
+        
+        # Fallback embedding strategy
+        if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
+            AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
+            
+        try:
+            AllChem.MMFFOptimizeMolecule(mol)
+        except Exception:
+            pass
+            
         return Chem.MolToMolBlock(mol)
     except Exception:
         return None
@@ -95,9 +103,22 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             return []
         mol = Chem.AddHs(mol)
         
-        cids = AllChem.EmbedMultipleConformers(mol, numConformers=num_poses, randomSeed=42, pruneRmsThresh=0.5)
-        res = AllChem.MMFFOptimizeMoleculeConformers(mol)
-        
+        # Embed multiple conformers with fallbacks
+        cids = list(AllChem.EmbedMultipleConformers(mol, numConformers=num_poses, randomSeed=42, pruneRmsThresh=0.5))
+        if not cids:
+            cid = AllChem.EmbedMolecule(mol, randomSeed=42)
+            if cid == -1:
+                cid = AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
+            cids = [cid] if cid != -1 else []
+            
+        if not cids:
+            return []
+
+        try:
+            AllChem.MMFFOptimizeMoleculeConformers(mol)
+        except Exception:
+            pass
+            
         center_x, center_y, center_z = get_receptor_center(receptor_data)
         num_atoms = mol.GetNumAtoms()
         molblocks = []
