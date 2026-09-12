@@ -113,7 +113,7 @@ def generate_standalone_ligand_3d(smiles_str):
         return None
 
 def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
-    """Generates multiple distinct low-energy conformer poses aligned to the binding pocket."""
+    """Generates multiple distinct low-energy conformer poses safely centered to binding pocket."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
@@ -146,7 +146,11 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             cy = sum(conf.GetAtomPosition(j).y for j in range(num_atoms)) / num_atoms
             cz = sum(conf.GetAtomPosition(j).z for j in range(num_atoms)) / num_atoms
             
-            dx, dy, dz = center_x - cx, center_y - cy, center_z - cz
+            # Align center with fallback to avoid out-of-bounds translation
+            dx = center_x - cx if center_x != 0.0 else 0.0
+            dy = center_y - cy if center_y != 0.0 else 0.0
+            dz = center_z - cz if center_z != 0.0 else 0.0
+            
             pose_offset_x = (i - 1) * 0.4
             pose_offset_y = (i - 1) * 0.3
             
@@ -184,7 +188,7 @@ def smiles_to_3d_molblock(smiles_str, receptor_data=None):
     return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB or PDBQT content and returns content along with actual extension."""
+    """Loads processed receptor PDB or PDBQT content."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
@@ -224,7 +228,7 @@ def load_receptor_pdb(variant_name):
     return None, None
 
 def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
-    """Extracts unique amino acid residues and returns formatted HTML sequence string with highlights."""
+    """Extracts amino acid sequence and builds interactive sequence map."""
     if not receptor_data:
         return [], ""
     if highlighted_res_nums is None:
