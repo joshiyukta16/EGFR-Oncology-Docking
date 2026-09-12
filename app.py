@@ -239,13 +239,13 @@ with tab1:
             
             # Model 0: Ligand Pose
             view.addModel(molblock, "mol")
-            view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
+            view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
             
-            # Model 1: Target Receptor
+            # Model 1: Receptor Structure
             view.addModel(receptor_data, file_ext)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # Surface Representations
+            # Surface rendering options
             if surface_style == "Transparent Surface":
                 view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
             elif surface_style == "Solid Surface":
@@ -253,22 +253,43 @@ with tab1:
             elif surface_style == "Electrostatic/VDW Surface":
                 view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
-            # Highlight selected pocket residues
+            # Highlight selected amino acid residues
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = re.sub(r'\D', '', res_label)
                     if res_num:
                         view.addStyle(
                             {'model': 1, 'resi': str(res_num)},
-                            {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon'}}
+                            {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.3}}
                         )
                         view.addResidueLabel(
                             {'model': 1, 'resi': str(res_num)},
                             res_label,
                             {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                         )
+
+            # Interactive Click Feature: Atom/Bond Highlighting and Labeling
+            click_script = """
+            function(atom, viewer, event, container) {
+                if (!atom) return;
+                if (atom.label) {
+                    viewer.removeLabel(atom.label);
+                    delete atom.label;
+                } else {
+                    var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
+                    atom.label = viewer.addLabel(labelText, {
+                        position: {x: atom.x, y: atom.y, z: atom.z},
+                        backgroundColor: 'black',
+                        fontColor: 'white',
+                        backgroundOpacity: 0.8
+                    });
+                }
+                viewer.render();
+            }
+            """
+            view.setClickable({}, True, click_script)
             
-            # Camera Auto-Focus: Center explicitly on ligand pose (Model 0) AFTER adding residue highlights
+            # Focus camera on ligand model (Model 0)
             view.zoomTo({'model': 0})
             if st.session_state["complex_zoom"] != 1.0:
                 view.zoom(st.session_state["complex_zoom"])
@@ -332,7 +353,7 @@ with tab1:
             st.metric(label=f"Predicted Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
 
     with l_col2:
-        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer")
+        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Clickable Atoms/Bonds)")
         lig_molblock = generate_standalone_ligand_3d(active_smiles)
         
         if lig_molblock:
@@ -353,8 +374,27 @@ with tab1:
                 l_view.setStyle({'elem': 'F'}, {'sphere': {'color': 'cyan', 'radius': 0.7}})
                 l_view.setStyle({'elem': 'C'}, {'stick': {'colorscheme': 'greenCarbon'}})
             else:
-                l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}, 'sphere': {'radius': 0.3}})
+                l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.2}, 'sphere': {'radius': 0.35}})
             
+            # Interactive Click Handler for Standalone Ligand
+            l_click_script = """
+            function(atom, viewer) {
+                if(!atom) return;
+                if (atom.label) {
+                    viewer.removeLabel(atom.label);
+                    delete atom.label;
+                } else {
+                    atom.label = viewer.addLabel(atom.elem + " #" + atom.serial, {
+                        position: {x: atom.x, y: atom.y, z: atom.z},
+                        backgroundColor: 'teal',
+                        fontColor: 'white'
+                    });
+                }
+                viewer.render();
+            }
+            """
+            l_view.setClickable({}, True, l_click_script)
+
             if st.session_state["ligand_spin"]:
                 l_view.spin(True)
             else:
