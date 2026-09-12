@@ -12,6 +12,21 @@ AA_MAP = {
     'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
 }
 
+# NSCLC Drug Library Presets
+NSCLC_DRUG_PRESETS = {
+    "Gefitinib (1st Gen)": "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl",
+    "Erlotinib (1st Gen)": "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C",
+    "Afatinib (2nd Gen)": "CN(C)C/C=C/C(=O)NC1=C(C=C2C(=C1)C(=NC=N2)NC3=CC(=C(C=C4)Cl)F)O[C@H]4CCOC4",
+    "Osimertinib (3rd Gen)": "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F"
+}
+
+# Critical Active-Site Residues for EGFR Kinase Pocket
+EGFR_POCKET_RESIDUES = {
+    "EGFR Wild-Type (1M17)": ["MET793", "LYS745", "LEU718", "THR790", "ALA743"],
+    "EGFR T790M Mutant": ["MET793", "LYS745", "MET790", "LEU718", "ALA743"],
+    "EGFR L858R Mutant": ["MET793", "LYS745", "ARG858", "LEU718", "ALA743"]
+}
+
 def fetch_smiles_from_pubchem(drug_name):
     """Fetches connectivity SMILES string from PubChem using drug name."""
     try:
@@ -105,7 +120,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             return []
         mol = Chem.AddHs(mol)
         
-        # FIXED: Changed EmbedMultipleConformers -> EmbedMultipleConfs
         cids = list(AllChem.EmbedMultipleConfs(mol, numConfs=num_poses, randomSeed=42, pruneRmsThresh=0.5))
         if not cids:
             cid = AllChem.EmbedMolecule(mol, randomSeed=42)
