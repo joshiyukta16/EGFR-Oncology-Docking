@@ -13,7 +13,9 @@ from docking_utils import (
     load_receptor_pdb,
     calculate_lipinski_properties,
     get_receptor_sequence,
-    compute_dynamic_binding_score
+    compute_dynamic_binding_score,
+    NSCLC_DRUG_PRESETS,
+    EGFR_POCKET_RESIDUES
 )
 
 # Session State Initialization
@@ -26,16 +28,18 @@ if "smiles" not in st.session_state:
 
 # Multi-Ligand Batch Screening State
 if "s1_val" not in st.session_state:
-    st.session_state["s1_val"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl" # Gefitinib
+    st.session_state["s1_val"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 if "s2_val" not in st.session_state:
-    st.session_state["s2_val"] = "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C"     # Erlotinib
+    st.session_state["s2_val"] = "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C"
 if "s3_val" not in st.session_state:
-    st.session_state["s3_val"] = "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F" # Osimertinib
+    st.session_state["s3_val"] = "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F"
 
 if "selected_candidate_idx" not in st.session_state:
     st.session_state["selected_candidate_idx"] = 0
 if "selected_pose_idx" not in st.session_state:
     st.session_state["selected_pose_idx"] = 0
+if "selected_residues" not in st.session_state:
+    st.session_state["selected_residues"] = []
 
 st.set_page_config(
     page_title="EGFR Molecular Docking Dashboard", 
@@ -140,7 +144,17 @@ target_variant = st.sidebar.selectbox(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Presets / PubChem Search")
+st.sidebar.subheader("💊 NSCLC TKI Benchmark Presets")
+selected_preset = st.sidebar.selectbox(
+    "Choose FDA-Approved EGFR TKI:",
+    ["Custom Input"] + list(NSCLC_DRUG_PRESETS.keys())
+)
+
+if selected_preset != "Custom Input":
+    st.session_state["smiles"] = NSCLC_DRUG_PRESETS[selected_preset]
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("PubChem Search")
 search_query = st.sidebar.text_input(
     "Search Drug by Name (e.g. Gefitinib, Erlotinib, Osimertinib):",
     placeholder="e.g. Gefitinib"
@@ -153,6 +167,10 @@ if search_query:
         st.session_state["smiles"] = fetched
     else:
         st.sidebar.error("Drug not found on PubChem.")
+
+# Callback for Pocket Residues Button
+def set_pocket_residues():
+    st.session_state["selected_residues"] = EGFR_POCKET_RESIDUES.get(target_variant, [])
 
 # ==========================================
 # 3. MAIN DASHBOARD TABS
@@ -178,6 +196,8 @@ with tab1:
             options=res_options,
             key="selected_residues"
         )
+        st.button("🎯 Highlight Key Catalytic Pocket Residues", on_click=set_pocket_residues)
+
     with c_opt2:
         surface_style = st.radio(
             "Receptor Surface Representation:",
