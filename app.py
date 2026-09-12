@@ -237,12 +237,15 @@ with tab1:
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
+            # Model 0: Ligand Pose
             view.addModel(molblock, "mol")
             view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon'}})
             
+            # Model 1: Target Receptor
             view.addModel(receptor_data, file_ext)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
+            # Surface Representations
             if surface_style == "Transparent Surface":
                 view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
             elif surface_style == "Solid Surface":
@@ -250,13 +253,14 @@ with tab1:
             elif surface_style == "Electrostatic/VDW Surface":
                 view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
+            # Highlight selected pocket residues
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = re.sub(r'\D', '', res_label)
                     if res_num:
                         view.addStyle(
                             {'model': 1, 'resi': str(res_num)},
-                            {'cartoon': {'color': 'red'}}
+                            {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon'}}
                         )
                         view.addResidueLabel(
                             {'model': 1, 'resi': str(res_num)},
@@ -264,14 +268,15 @@ with tab1:
                             {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                         )
             
+            # Camera Auto-Focus: Center explicitly on ligand pose (Model 0) AFTER adding residue highlights
+            view.zoomTo({'model': 0})
+            if st.session_state["complex_zoom"] != 1.0:
+                view.zoom(st.session_state["complex_zoom"])
+
             if st.session_state["complex_spin"]:
                 view.spin(True)
             else:
                 view.spin(False)
-            
-            view.zoomTo({'model': 0})
-            if st.session_state["complex_zoom"] != 1.0:
-                view.zoom(st.session_state["complex_zoom"])
                 
             html_content = view._make_html()
             st.components.v1.html(html_content, height=490, width=1120)
