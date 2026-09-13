@@ -18,28 +18,11 @@ from docking_utils import (
     EGFR_POCKET_RESIDUES
 )
 
-# Helper function to render py3Dmol views reliably in Streamlit
-def render_3dmol_view(view_obj, height=350):
-    """Wraps py3Dmol object in complete HTML container with 3Dmol.js injected."""
-    view_html = view_obj._make_html()
-    full_html = f"""
-    <!Tokenizer html>
-    <html>
-    <head>
-        <script src="https://3dmol.org/build/3Dmol-min.js"></script>
-    </head>
-    <body style="margin:0; padding:0; overflow:hidden;">
-        {view_html}
-    </body>
-    </html>
-    """
-    st.components.v1.html(full_html, height=height, scrolling=False)
-
 # Session State Initialization
 if "sidebar_state" not in st.session_state:
     st.session_state["sidebar_state"] = "collapsed"
 if "docking_ran" not in st.session_state:
-    st.session_state["docking_ran"] = True
+    st.session_state["docking_ran"] = False
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
@@ -169,7 +152,6 @@ selected_preset = st.sidebar.selectbox(
 
 if selected_preset != "Custom Input":
     st.session_state["smiles"] = NSCLC_DRUG_PRESETS[selected_preset]
-    st.session_state["docking_ran"] = True
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("PubChem Search")
@@ -183,7 +165,6 @@ if search_query:
     if fetched:
         st.sidebar.success(f"Found structure for '{search_query}'")
         st.session_state["smiles"] = fetched
-        st.session_state["docking_ran"] = True
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
@@ -252,7 +233,7 @@ with tab1:
             idx = min(st.session_state["selected_pose_idx"], len(all_poses)-1)
             molblock = all_poses[idx]
             
-            view = py3Dmol.view(width="100%", height=480)
+            view = py3Dmol.view(width=1100, height=480)
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
@@ -287,45 +268,16 @@ with tab1:
                             {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                         )
 
-            # Interactive Click Feature: Atom Info + 3-Atom Bond Angle Measurement
+            # Interactive Click Feature: Atom/Bond Highlighting and Labeling
             click_script = """
-            if (!window.selectedAtoms) { window.selectedAtoms = []; }
-            
             function(atom, viewer, event, container) {
                 if (!atom) return;
-                
-                window.selectedAtoms.push(atom);
-                viewer.addSphere({center: {x: atom.x, y: atom.y, z: atom.z}, radius: 0.4, color: 'yellow'});
-                
-                if (window.selectedAtoms.length === 3) {
-                    var a1 = window.selectedAtoms[0];
-                    var a2 = window.selectedAtoms[1]; // Vertex atom
-                    var a3 = window.selectedAtoms[2];
-                    
-                    var v1 = {x: a1.x - a2.x, y: a1.y - a2.y, z: a1.z - a2.z};
-                    var v2 = {x: a3.x - a2.x, y: a3.y - a2.y, z: a3.z - a2.z};
-                    
-                    var dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
-                    var mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
-                    var mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
-                    
-                    var angleRad = Math.acos(dot / (mag1 * mag2));
-                    var angleDeg = (angleRad * (180 / Math.PI)).toFixed(1);
-                    
-                    viewer.addLabel("∠ " + angleDeg + "°", {
-                        position: {x: a2.x, y: a2.y + 0.5, z: a2.z},
-                        backgroundColor: '#ff4b4b',
-                        fontColor: 'white',
-                        fontSize: 14
-                    });
-                    
-                    viewer.addLine({start: {x: a1.x, y: a1.y, z: a1.z}, end: {x: a2.x, y: a2.y, z: a2.z}, color: 'yellow'});
-                    viewer.addLine({start: {x: a2.x, y: a2.y, z: a2.z}, end: {x: a3.x, y: a3.y, z: a3.z}, color: 'yellow'});
-                    
-                    window.selectedAtoms = [];
+                if (atom.label) {
+                    viewer.removeLabel(atom.label);
+                    delete atom.label;
                 } else {
                     var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
-                    viewer.addLabel(labelText, {
+                    atom.label = viewer.addLabel(labelText, {
                         position: {x: atom.x, y: atom.y, z: atom.z},
                         backgroundColor: 'black',
                         fontColor: 'white',
@@ -337,6 +289,7 @@ with tab1:
             """
             view.setClickable({}, True, click_script)
             
+            # Focus camera on ligand model (Model 0)
             view.zoomTo({'model': 0})
             if st.session_state["complex_zoom"] != 1.0:
                 view.zoom(st.session_state["complex_zoom"])
@@ -346,7 +299,8 @@ with tab1:
             else:
                 view.spin(False)
                 
-            render_3dmol_view(view, height=500)
+            html_content = view._make_html()
+            st.components.v1.html(html_content, height=490, width=1120)
             
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
@@ -399,11 +353,11 @@ with tab1:
             st.metric(label=f"Predicted Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
 
     with l_col2:
-        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Click 3 Atoms for Angle)")
+        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Clickable Atoms/Bonds)")
         lig_molblock = generate_standalone_ligand_3d(active_smiles)
         
         if lig_molblock:
-            l_view = py3Dmol.view(width="100%", height=320)
+            l_view = py3Dmol.view(width=540, height=300)
             l_bg = "#111111" if st.session_state["ligand_dark"] else "#ffffff"
             l_view.setBackgroundColor(l_bg)
             
@@ -422,43 +376,17 @@ with tab1:
             else:
                 l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.2}, 'sphere': {'radius': 0.35}})
             
+            # Interactive Click Handler for Standalone Ligand
             l_click_script = """
-            if (!window.selectedLigAtoms) { window.selectedLigAtoms = []; }
-            
             function(atom, viewer) {
                 if(!atom) return;
-                window.selectedLigAtoms.push(atom);
-                viewer.addSphere({center: {x: atom.x, y: atom.y, z: atom.z}, radius: 0.35, color: 'teal'});
-                
-                if (window.selectedLigAtoms.length === 3) {
-                    var a1 = window.selectedLigAtoms[0];
-                    var a2 = window.selectedLigAtoms[1];
-                    var a3 = window.selectedLigAtoms[2];
-                    
-                    var v1 = {x: a1.x - a2.x, y: a1.y - a2.y, z: a1.z - a2.z};
-                    var v2 = {x: a3.x - a2.x, y: a3.y - a2.y, z: a3.z - a2.z};
-                    
-                    var dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
-                    var mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
-                    var mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
-                    
-                    var angleRad = Math.acos(dot / (mag1 * mag2));
-                    var angleDeg = (angleRad * (180 / Math.PI)).toFixed(1);
-                    
-                    viewer.addLabel("∠ " + angleDeg + "°", {
-                        position: {x: a2.x, y: a2.y + 0.4, z: a2.z},
-                        backgroundColor: 'teal',
-                        fontColor: 'white'
-                    });
-                    
-                    viewer.addLine({start: {x: a1.x, y: a1.y, z: a1.z}, end: {x: a2.x, y: a2.y, z: a2.z}, color: 'teal'});
-                    viewer.addLine({start: {x: a2.x, y: a2.y, z: a2.z}, end: {x: a3.x, y: a3.y, z: a3.z}, color: 'teal'});
-                    
-                    window.selectedLigAtoms = [];
+                if (atom.label) {
+                    viewer.removeLabel(atom.label);
+                    delete atom.label;
                 } else {
-                    viewer.addLabel(atom.elem + " #" + atom.serial, {
+                    atom.label = viewer.addLabel(atom.elem + " #" + atom.serial, {
                         position: {x: atom.x, y: atom.y, z: atom.z},
-                        backgroundColor: 'black',
+                        backgroundColor: 'teal',
                         fontColor: 'white'
                     });
                 }
@@ -476,7 +404,8 @@ with tab1:
             if st.session_state["ligand_zoom"] != 1.0:
                 l_view.zoom(st.session_state["ligand_zoom"])
                 
-            render_3dmol_view(l_view, height=350)
+            l_html = l_view._make_html()
+            st.components.v1.html(l_html, height=310, width=550)
             
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
@@ -593,11 +522,12 @@ with tab2:
         with c_l2:
             cand_block = generate_standalone_ligand_3d(selected_smiles)
             if cand_block:
-                b_view = py3Dmol.view(width="100%", height=220)
+                b_view = py3Dmol.view(width=450, height=220)
                 b_view.addModel(cand_block, "mol")
                 b_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}})
                 b_view.zoomTo()
-                render_3dmol_view(b_view, height=250)
+                b_html = b_view._make_html()
+                st.components.v1.html(b_html, height=230, width=460)
 
 with tab3:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
