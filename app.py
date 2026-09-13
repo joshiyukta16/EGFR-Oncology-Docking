@@ -18,11 +18,28 @@ from docking_utils import (
     EGFR_POCKET_RESIDUES
 )
 
+# Helper function to render py3Dmol views reliably in Streamlit
+def render_3dmol_view(view_obj, height=350):
+    """Wraps py3Dmol object in complete HTML container with 3Dmol.js injected."""
+    view_html = view_obj._make_html()
+    full_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <script src="https://3dmol.org/build/3Dmol-min.js"></script>
+    </head>
+    <body style="margin:0; padding:0; overflow:hidden;">
+        {view_html}
+    </body>
+    </html>
+    """
+    st.components.v1.html(full_html, height=height, scrolling=False)
+
 # Session State Initialization
 if "sidebar_state" not in st.session_state:
     st.session_state["sidebar_state"] = "collapsed"
 if "docking_ran" not in st.session_state:
-    st.session_state["docking_ran"] = False
+    st.session_state["docking_ran"] = True
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
@@ -152,6 +169,7 @@ selected_preset = st.sidebar.selectbox(
 
 if selected_preset != "Custom Input":
     st.session_state["smiles"] = NSCLC_DRUG_PRESETS[selected_preset]
+    st.session_state["docking_ran"] = True
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("PubChem Search")
@@ -165,6 +183,7 @@ if search_query:
     if fetched:
         st.sidebar.success(f"Found structure for '{search_query}'")
         st.session_state["smiles"] = fetched
+        st.session_state["docking_ran"] = True
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
@@ -182,8 +201,19 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "Receptor Info"
 ])
 
+# ------------------------------------------
+# TAB 1: 3D DOCKING VIEWER & ANALYSIS
+# ------------------------------------------
 with tab1:
     st.subheader("1. Interactive 3D Complex & Surface Inspection")
+    
+    # Feature Banner for Tab 1
+    st.info(
+        "💡 **Interactive Visualizer Features:**\n"
+        "* **Bond Angle Measurement**: Click **3 consecutive atoms** to highlight them, draw connecting vectors, and display the calculated angle (`∠ XX.X°`).\n"
+        "* **Atom Labeling**: Single-click any atom to display its residue name, atom symbol, and serial index.\n"
+        "* **Viewport Controls**: Use the control buttons below to toggle continuous 3D rotation, switch Dark/Light canvas modes, or adjust zoom."
+    )
     
     receptor_data, file_ext = load_receptor_pdb(target_variant)
     seq_list, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
@@ -215,7 +245,7 @@ with tab1:
                 unsafe_allow_html=True
             )
         else:
-            st.info("Receptor structure file missing from /receptors folder.")
+            st.warning("⚠️ Receptor PDB file missing from `/receptors/` folder. Visualizing standalone ligand.")
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
@@ -223,7 +253,7 @@ with tab1:
     if st.session_state["docking_ran"]:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
-        if receptor_data and len(all_poses) > 0:
+        if len(all_poses) > 0:
             p_col1, p_col2 = st.columns([3, 1])
             with p_col2:
                 st.markdown("##### 🎯 Docked Pose Conformer Selection")
@@ -233,7 +263,7 @@ with tab1:
             idx = min(st.session_state["selected_pose_idx"], len(all_poses)-1)
             molblock = all_poses[idx]
             
-            view = py3Dmol.view(width=1100, height=480)
+            view = py3Dmol.view(width="100%", height=480)
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
@@ -242,42 +272,70 @@ with tab1:
             view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
             
             # Model 1: Receptor Structure
-            view.addModel(receptor_data, file_ext)
-            view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
-            
-            # Surface rendering options
-            if surface_style == "Transparent Surface":
-                view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
-            elif surface_style == "Solid Surface":
-                view.addSurface(py3Dmol.VDW, {'opacity': 0.88, 'colorscheme': 'spectrum'}, {'model': 1})
-            elif surface_style == "Electrostatic/VDW Surface":
-                view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
+            if receptor_data:
+                view.addModel(receptor_data, file_ext)
+                view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
+                
+                if surface_style == "Transparent Surface":
+                    view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
+                elif surface_style == "Solid Surface":
+                    view.addSurface(py3Dmol.VDW, {'opacity': 0.88, 'colorscheme': 'spectrum'}, {'model': 1})
+                elif surface_style == "Electrostatic/VDW Surface":
+                    view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
-            # Highlight selected amino acid residues
-            if selected_custom_residues:
-                for res_label in selected_custom_residues:
-                    res_num = re.sub(r'\D', '', res_label)
-                    if res_num:
-                        view.addStyle(
-                            {'model': 1, 'resi': str(res_num)},
-                            {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.3}}
-                        )
-                        view.addResidueLabel(
-                            {'model': 1, 'resi': str(res_num)},
-                            res_label,
-                            {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
-                        )
+                if selected_custom_residues:
+                    for res_label in selected_custom_residues:
+                        res_num = re.sub(r'\D', '', res_label)
+                        if res_num:
+                            view.addStyle(
+                                {'model': 1, 'resi': str(res_num)},
+                                {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.3}}
+                            )
+                            view.addResidueLabel(
+                                {'model': 1, 'resi': str(res_num)},
+                                res_label,
+                                {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
+                            )
 
-            # Interactive Click Feature: Atom/Bond Highlighting and Labeling
+            # Interactive Click Feature: Atom Info + 3-Atom Bond Angle Measurement
             click_script = """
+            if (!window.selectedAtoms) { window.selectedAtoms = []; }
+            
             function(atom, viewer, event, container) {
                 if (!atom) return;
-                if (atom.label) {
-                    viewer.removeLabel(atom.label);
-                    delete atom.label;
+                
+                window.selectedAtoms.push(atom);
+                viewer.addSphere({center: {x: atom.x, y: atom.y, z: atom.z}, radius: 0.4, color: 'yellow'});
+                
+                if (window.selectedAtoms.length === 3) {
+                    var a1 = window.selectedAtoms[0];
+                    var a2 = window.selectedAtoms[1]; // Vertex atom
+                    var a3 = window.selectedAtoms[2];
+                    
+                    var v1 = {x: a1.x - a2.x, y: a1.y - a2.y, z: a1.z - a2.z};
+                    var v2 = {x: a3.x - a2.x, y: a3.y - a2.y, z: a3.z - a2.z};
+                    
+                    var dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+                    var mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
+                    var mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
+                    
+                    var angleRad = Math.acos(dot / (mag1 * mag2));
+                    var angleDeg = (angleRad * (180 / Math.PI)).toFixed(1);
+                    
+                    viewer.addLabel("∠ " + angleDeg + "°", {
+                        position: {x: a2.x, y: a2.y + 0.5, z: a2.z},
+                        backgroundColor: '#ff4b4b',
+                        fontColor: 'white',
+                        fontSize: 14
+                    });
+                    
+                    viewer.addLine({start: {x: a1.x, y: a1.y, z: a1.z}, end: {x: a2.x, y: a2.y, z: a2.z}, color: 'yellow'});
+                    viewer.addLine({start: {x: a2.x, y: a2.y, z: a2.z}, end: {x: a3.x, y: a3.y, z: a3.z}, color: 'yellow'});
+                    
+                    window.selectedAtoms = [];
                 } else {
                     var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
-                    atom.label = viewer.addLabel(labelText, {
+                    viewer.addLabel(labelText, {
                         position: {x: atom.x, y: atom.y, z: atom.z},
                         backgroundColor: 'black',
                         fontColor: 'white',
@@ -289,7 +347,6 @@ with tab1:
             """
             view.setClickable({}, True, click_script)
             
-            # Focus camera on ligand model (Model 0)
             view.zoomTo({'model': 0})
             if st.session_state["complex_zoom"] != 1.0:
                 view.zoom(st.session_state["complex_zoom"])
@@ -299,8 +356,7 @@ with tab1:
             else:
                 view.spin(False)
                 
-            html_content = view._make_html()
-            st.components.v1.html(html_content, height=490, width=1120)
+            render_3dmol_view(view, height=500)
             
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
@@ -328,8 +384,6 @@ with tab1:
                     st.rerun()
         else:
             st.error("Error generating 3D complex. Verify structure files and SMILES format.")
-    else:
-        st.info("Visualizer canvas clean. Click 'Run Virtual Screening & Docking' below to execute docking.")
 
     st.markdown("---")
 
@@ -353,11 +407,11 @@ with tab1:
             st.metric(label=f"Predicted Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
 
     with l_col2:
-        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Clickable Atoms/Bonds)")
+        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Click 3 Atoms for Angle)")
         lig_molblock = generate_standalone_ligand_3d(active_smiles)
         
         if lig_molblock:
-            l_view = py3Dmol.view(width=540, height=300)
+            l_view = py3Dmol.view(width="100%", height=320)
             l_bg = "#111111" if st.session_state["ligand_dark"] else "#ffffff"
             l_view.setBackgroundColor(l_bg)
             
@@ -376,17 +430,43 @@ with tab1:
             else:
                 l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.2}, 'sphere': {'radius': 0.35}})
             
-            # Interactive Click Handler for Standalone Ligand
             l_click_script = """
+            if (!window.selectedLigAtoms) { window.selectedLigAtoms = []; }
+            
             function(atom, viewer) {
                 if(!atom) return;
-                if (atom.label) {
-                    viewer.removeLabel(atom.label);
-                    delete atom.label;
-                } else {
-                    atom.label = viewer.addLabel(atom.elem + " #" + atom.serial, {
-                        position: {x: atom.x, y: atom.y, z: atom.z},
+                window.selectedLigAtoms.push(atom);
+                viewer.addSphere({center: {x: atom.x, y: atom.y, z: atom.z}, radius: 0.35, color: 'teal'});
+                
+                if (window.selectedLigAtoms.length === 3) {
+                    var a1 = window.selectedLigAtoms[0];
+                    var a2 = window.selectedLigAtoms[1];
+                    var a3 = window.selectedLigAtoms[2];
+                    
+                    var v1 = {x: a1.x - a2.x, y: a1.y - a2.y, z: a1.z - a2.z};
+                    var v2 = {x: a3.x - a2.x, y: a3.y - a2.y, z: a3.z - a2.z};
+                    
+                    var dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+                    var mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
+                    var mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
+                    
+                    var angleRad = Math.acos(dot / (mag1 * mag2));
+                    var angleDeg = (angleRad * (180 / Math.PI)).toFixed(1);
+                    
+                    viewer.addLabel("∠ " + angleDeg + "°", {
+                        position: {x: a2.x, y: a2.y + 0.4, z: a2.z},
                         backgroundColor: 'teal',
+                        fontColor: 'white'
+                    });
+                    
+                    viewer.addLine({start: {x: a1.x, y: a1.y, z: a1.z}, end: {x: a2.x, y: a2.y, z: a2.z}, color: 'teal'});
+                    viewer.addLine({start: {x: a2.x, y: a2.y, z: a2.z}, end: {x: a3.x, y: a3.y, z: a3.z}, color: 'teal'});
+                    
+                    window.selectedLigAtoms = [];
+                } else {
+                    viewer.addLabel(atom.elem + " #" + atom.serial, {
+                        position: {x: atom.x, y: atom.y, z: atom.z},
+                        backgroundColor: 'black',
                         fontColor: 'white'
                     });
                 }
@@ -404,8 +484,7 @@ with tab1:
             if st.session_state["ligand_zoom"] != 1.0:
                 l_view.zoom(st.session_state["ligand_zoom"])
                 
-            l_html = l_view._make_html()
-            st.components.v1.html(l_html, height=310, width=550)
+            render_3dmol_view(l_view, height=350)
             
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
@@ -460,11 +539,19 @@ with tab1:
         df_descriptors = pd.DataFrame(list(props.items()), columns=["Descriptor Property", "Calculated Value"])
         st.dataframe(df_descriptors, use_container_width=True, hide_index=True)
 
-# ==========================================
-# MULTI-LIGAND BATCH SCREENING TAB
-# ==========================================
+# ------------------------------------------
+# TAB 2: MULTI-CANDIDATE VIRTUAL SCREENING
+# ------------------------------------------
 with tab2:
     st.subheader("🧪 Multi-Ligand Batch Screening Panel")
+    
+    # Feature Banner for Tab 2
+    st.info(
+        "💡 **Batch Screening & Visualizer Features:**\n"
+        "* **Parallel Docking Evaluation**: Input up to 3 SMILES candidate molecules to rank their calculated binding energies across the selected EGFR target.\n"
+        "* **Interactive Structure Preview**: Select any screen from the dropdown below to inspect its 3D conformer with **3-Atom Bond Angle measurement** or load it directly into the main 3D viewer."
+    )
+    
     st.write("Input multiple SMILES candidate molecules below to perform parallel docking, rank affinity across target mutants, and switch between screens.")
 
     b_col1, b_col2, b_col3 = st.columns(3)
@@ -522,26 +609,66 @@ with tab2:
         with c_l2:
             cand_block = generate_standalone_ligand_3d(selected_smiles)
             if cand_block:
-                b_view = py3Dmol.view(width=450, height=220)
+                b_view = py3Dmol.view(width="100%", height=220)
                 b_view.addModel(cand_block, "mol")
                 b_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}})
                 b_view.zoomTo()
-                b_html = b_view._make_html()
-                st.components.v1.html(b_html, height=230, width=460)
+                render_3dmol_view(b_view, height=250)
 
+# ------------------------------------------
+# TAB 3: COMPARATIVE ANALYSIS TABLE
+# ------------------------------------------
 with tab3:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
+    
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
+    
+    # Explicit Context Banner explaining which ligand is being compared across variants
+    st.info(
+        f"🔬 **Active Ligand Cross-Variant Profiling**\n\n"
+        f"This comparative table evaluates the **currently active ligand selected in Tab 1** across all three EGFR kinase receptor target structures.\n\n"
+        f"**Currently Active SMILES:** `{active_smiles}`"
+    )
+    
     scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
     st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
 
+# ------------------------------------------
+# TAB 4: RECEPTOR INFO (ENHANCED DETAILS)
+# ------------------------------------------
 with tab4:
-    st.subheader("Target Structure Metadata & Structural Notes")
+    st.subheader("Target Structure Metadata & Detailed Structural Notes")
+    
     st.markdown("""
-    * **EGFR Wild-Type (1M17)**: Represents the active kinase domain conformation bound to 1st-generation TKIs (Erlotinib/Gefitinib).
-    * **EGFR T790M Mutant**: Contains the critical gatekeeper point mutation (Threonine 790 to Methionine), creating steric hindrance causing TKI drug resistance.
-    * **EGFR L858R Mutant**: Features the activating mutation in exon 21 (Leucine 858 to Arginine), causing constitutive kinase domain activation.
+    ### 🧬 Targeted EGFR Kinase Domain Variants
+    
+    * **EGFR Wild-Type (PDB: 1M17)**:
+      * **Conformation**: Active kinase domain co-crystallized with 1st-generation Tyrosine Kinase Inhibitors (TKIs) like Gefitinib and Erlotinib.
+      * **Structural Significance**: Represents the baseline drug-sensitive conformation of human Epidermal Growth Factor Receptor (EGFR).
+      
+    * **EGFR T790M Gatekeeper Mutant (PDB: 2ITY)**:
+      * **Mutation**: Point mutation swapping **Threonine 790 to Methionine** at the entrance of the ATP-binding cleft.
+      * **Clinical Impact**: Known as the primary acquired resistance mutation (~50% of 1st-gen TKI resistant NSCLC cases). The bulky Methionine side chain creates steric hindrance that prevents Gefitinib/Erlotinib binding while increasing ATP affinity.
+      
+    * **EGFR L858R Activating Mutant (PDB: 9VOX)**:
+      * **Mutation**: Activating point mutation in exon 21 substituting **Leucine 858 with Arginine**.
+      * **Clinical Impact**: Destabilizes the inactive kinase conformation, keeping the activation loop in a constitutively active state. This leads to hyper-activation of oncogenic downstream signaling cascades.
+
+    ---
+
+    ### 🎯 Key Pocket & Active-Site Catalytic Residues
+    * **MET793**: Key hinge region residue forming essential hydrogen bonds with the quinazoline core of EGFR TKIs.
+    * **LYS745**: Highly conserved catalytic Lysine residue essential for ATP coordinate positioning.
+    * **THR790 / MET790**: Gatekeeper residue position controlling pocket accessibility and drug resistance profiles.
+    * **LEU718 & ALA743**: Hydrophobic pocket lining residues stabilizing the aromatic ring structures of bound ligands.
+    * **ARG858**: Mutated residue site in L858R activating variants influencing activation loop dynamics.
+
+    ---
+
+    ### 🛠️ Structure Preparation Pipeline
+    * **Cleaning & Optimization**: Co-crystallized water molecules and non-catalytic crystallographic ions were stripped. Missing hydrogen atoms were added, and protonation states were adjusted for physiological pH (~7.4).
+    * **Grid Box Centering**: Binding pocket coordinates are dynamically mapped directly around the catalytic ATP hinge region to ensure robust ligand docking pose alignment.
     """)
     
     st.markdown("---")
