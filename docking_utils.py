@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import json
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski, rdMolDescriptors
 import pubchempy as pcp
@@ -102,7 +103,9 @@ def generate_standalone_ligand_3d(smiles_str):
         mol = Chem.AddHs(mol)
         res = AllChem.EmbedMolecule(mol, randomSeed=42)
         if res != 0:
-            AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
+            res = AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
+        if res != 0:
+            AllChem.Compute2DCoords(mol)
         try:
             AllChem.MMFFOptimizeMolecule(mol)
         except Exception:
@@ -125,10 +128,10 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             cid = AllChem.EmbedMolecule(mol, randomSeed=42)
             if cid == -1:
                 cid = AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
-            cids = [cid] if cid != -1 else []
-            
-        if not cids:
-            return []
+            if cid == -1:
+                AllChem.Compute2DCoords(mol)
+                cid = 0
+            cids = [cid]
 
         try:
             AllChem.MMFFOptimizeMoleculeConfs(mol)
@@ -146,7 +149,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             cy = sum(conf.GetAtomPosition(j).y for j in range(num_atoms)) / num_atoms
             cz = sum(conf.GetAtomPosition(j).z for j in range(num_atoms)) / num_atoms
             
-            # Align center with fallback to avoid out-of-bounds translation
             dx = center_x - cx if center_x != 0.0 else 0.0
             dy = center_y - cy if center_y != 0.0 else 0.0
             dz = center_z - cz if center_z != 0.0 else 0.0
