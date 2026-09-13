@@ -100,19 +100,13 @@ def generate_standalone_ligand_3d(smiles_str):
         if mol is None:
             return None
         mol = Chem.AddHs(mol)
-        
         res = AllChem.EmbedMolecule(mol, randomSeed=42)
         if res != 0:
-            res = AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
-            
-        if res != 0:
-            AllChem.Compute2DCoords(mol)
-            
+            AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
         try:
             AllChem.MMFFOptimizeMolecule(mol)
         except Exception:
             pass
-            
         return Chem.MolToMolBlock(mol)
     except Exception as e:
         print(f"[DEBUG standalone_3d] {e}", file=sys.stderr)
@@ -131,14 +125,15 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             cid = AllChem.EmbedMolecule(mol, randomSeed=42)
             if cid == -1:
                 cid = AllChem.EmbedMolecule(mol, useRandomCoordinates=True, randomSeed=42)
-            if cid == -1:
-                AllChem.Compute2DCoords(mol)
-                cid = 0
-            cids = [cid]
+            cids = [cid] if cid != -1 else []
             
+        if not cids:
+            return []
+
         try:
             AllChem.MMFFOptimizeMoleculeConfs(mol)
-        except Exception:
+        except Exception as opt_err:
+            print(f"[DEBUG MMFFConfs] {opt_err}", file=sys.stderr)
             pass
             
         center_x, center_y, center_z = get_receptor_center(receptor_data)
@@ -151,9 +146,10 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             cy = sum(conf.GetAtomPosition(j).y for j in range(num_atoms)) / num_atoms
             cz = sum(conf.GetAtomPosition(j).z for j in range(num_atoms)) / num_atoms
             
-            dx = center_x - cx
-            dy = center_y - cy
-            dz = center_z - cz
+            # Align center with fallback to avoid out-of-bounds translation
+            dx = center_x - cx if center_x != 0.0 else 0.0
+            dy = center_y - cy if center_y != 0.0 else 0.0
+            dz = center_z - cz if center_z != 0.0 else 0.0
             
             pose_offset_x = (i - 1) * 0.4
             pose_offset_y = (i - 1) * 0.3
