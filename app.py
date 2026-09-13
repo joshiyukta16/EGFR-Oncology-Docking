@@ -268,16 +268,56 @@ with tab1:
                             {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                         )
 
-            # Interactive Click Feature: Atom/Bond Highlighting and Labeling
+            # Interactive Click Feature: Atom Info + 3-Atom Bond Angle Measurement
             click_script = """
+            if (!window.selectedAtoms) { window.selectedAtoms = []; }
+            
             function(atom, viewer, event, container) {
                 if (!atom) return;
-                if (atom.label) {
-                    viewer.removeLabel(atom.label);
-                    delete atom.label;
+                
+                // Toggle Atom Selection for Angle Calculation
+                window.selectedAtoms.push(atom);
+                
+                // Add temporary sphere highlight on clicked atom
+                viewer.addSphere({center: {x: atom.x, y: atom.y, z: atom.z}, radius: 0.4, color: 'yellow'});
+                
+                if (window.selectedAtoms.length === 3) {
+                    var a1 = window.selectedAtoms[0];
+                    var a2 = window.selectedAtoms[1]; // Vertex atom
+                    var a3 = window.selectedAtoms[2];
+                    
+                    // Vector 1 (a2 -> a1)
+                    var v1 = {x: a1.x - a2.x, y: a1.y - a2.y, z: a1.z - a2.z};
+                    // Vector 2 (a2 -> a3)
+                    var v2 = {x: a3.x - a2.x, y: a3.y - a2.y, z: a3.z - a2.z};
+                    
+                    // Dot product & magnitudes
+                    var dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+                    var mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
+                    var mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
+                    
+                    // Calculate Angle in Degrees
+                    var angleRad = Math.acos(dot / (mag1 * mag2));
+                    var angleDeg = (angleRad * (180 / Math.PI)).toFixed(1);
+                    
+                    // Display Bond Angle Label at Vertex Atom (a2)
+                    viewer.addLabel("∠ " + angleDeg + "°", {
+                        position: {x: a2.x, y: a2.y + 0.5, z: a2.z},
+                        backgroundColor: '#ff4b4b',
+                        fontColor: 'white',
+                        fontSize: 14
+                    });
+                    
+                    // Draw connecting lines showing the angle
+                    viewer.addLine({start: {x: a1.x, y: a1.y, z: a1.z}, end: {x: a2.x, y: a2.y, z: a2.z}, color: 'yellow'});
+                    viewer.addLine({start: {x: a2.x, y: a2.y, z: a2.z}, end: {x: a3.x, y: a3.y, z: a3.z}, color: 'yellow'});
+                    
+                    // Reset selection array after calculation
+                    window.selectedAtoms = [];
                 } else {
+                    // Standard Single Atom Label
                     var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
-                    atom.label = viewer.addLabel(labelText, {
+                    viewer.addLabel(labelText, {
                         position: {x: atom.x, y: atom.y, z: atom.z},
                         backgroundColor: 'black',
                         fontColor: 'white',
@@ -353,7 +393,7 @@ with tab1:
             st.metric(label=f"Predicted Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
 
     with l_col2:
-        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Clickable Atoms/Bonds)")
+        st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Click 3 Atoms for Angle)")
         lig_molblock = generate_standalone_ligand_3d(active_smiles)
         
         if lig_molblock:
@@ -376,17 +416,44 @@ with tab1:
             else:
                 l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.2}, 'sphere': {'radius': 0.35}})
             
-            # Interactive Click Handler for Standalone Ligand
+            # Interactive Click Handler for Standalone Ligand Angle Measurement
             l_click_script = """
+            if (!window.selectedLigAtoms) { window.selectedLigAtoms = []; }
+            
             function(atom, viewer) {
                 if(!atom) return;
-                if (atom.label) {
-                    viewer.removeLabel(atom.label);
-                    delete atom.label;
-                } else {
-                    atom.label = viewer.addLabel(atom.elem + " #" + atom.serial, {
-                        position: {x: atom.x, y: atom.y, z: atom.z},
+                window.selectedLigAtoms.push(atom);
+                viewer.addSphere({center: {x: atom.x, y: atom.y, z: atom.z}, radius: 0.35, color: 'teal'});
+                
+                if (window.selectedLigAtoms.length === 3) {
+                    var a1 = window.selectedLigAtoms[0];
+                    var a2 = window.selectedLigAtoms[1];
+                    var a3 = window.selectedLigAtoms[2];
+                    
+                    var v1 = {x: a1.x - a2.x, y: a1.y - a2.y, z: a1.z - a2.z};
+                    var v2 = {x: a3.x - a2.x, y: a3.y - a2.y, z: a3.z - a2.z};
+                    
+                    var dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+                    var mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
+                    var mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
+                    
+                    var angleRad = Math.acos(dot / (mag1 * mag2));
+                    var angleDeg = (angleRad * (180 / Math.PI)).toFixed(1);
+                    
+                    viewer.addLabel("∠ " + angleDeg + "°", {
+                        position: {x: a2.x, y: a2.y + 0.4, z: a2.z},
                         backgroundColor: 'teal',
+                        fontColor: 'white'
+                    });
+                    
+                    viewer.addLine({start: {x: a1.x, y: a1.y, z: a1.z}, end: {x: a2.x, y: a2.y, z: a2.z}, color: 'teal'});
+                    viewer.addLine({start: {x: a2.x, y: a2.y, z: a2.z}, end: {x: a3.x, y: a3.y, z: a3.z}, color: 'teal'});
+                    
+                    window.selectedLigAtoms = [];
+                } else {
+                    viewer.addLabel(atom.elem + " #" + atom.serial, {
+                        position: {x: atom.x, y: atom.y, z: atom.z},
+                        backgroundColor: 'black',
                         fontColor: 'white'
                     });
                 }
