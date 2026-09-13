@@ -22,7 +22,7 @@ from docking_utils import (
 if "sidebar_state" not in st.session_state:
     st.session_state["sidebar_state"] = "collapsed"
 if "docking_ran" not in st.session_state:
-    st.session_state["docking_ran"] = True  # Set to True so visualizer displays by default
+    st.session_state["docking_ran"] = True
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
@@ -320,7 +320,6 @@ with tab1:
             """
             view.setClickable({}, True, click_script)
             
-            # Focus camera on ligand model (Model 0)
             view.zoomTo({'model': 0})
             if st.session_state["complex_zoom"] != 1.0:
                 view.zoom(st.session_state["complex_zoom"])
@@ -330,6 +329,7 @@ with tab1:
             else:
                 view.spin(False)
                 
+            view.render()
             html_content = view._make_html()
             st.components.v1.html(html_content, height=490, width=1120)
             
@@ -407,7 +407,6 @@ with tab1:
             else:
                 l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.2}, 'sphere': {'radius': 0.35}})
             
-            # Interactive Click Handler for Standalone Ligand Angle Measurement
             l_click_script = """
             if (!window.selectedLigAtoms) { window.selectedLigAtoms = []; }
             
@@ -462,6 +461,7 @@ with tab1:
             if st.session_state["ligand_zoom"] != 1.0:
                 l_view.zoom(st.session_state["ligand_zoom"])
                 
+            l_view.render()
             l_html = l_view._make_html()
             st.components.v1.html(l_html, height=310, width=550)
             
@@ -584,6 +584,7 @@ with tab2:
                 b_view.addModel(cand_block, "mol")
                 b_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}})
                 b_view.zoomTo()
+                b_view.render()
                 b_html = b_view._make_html()
                 st.components.v1.html(b_html, height=230, width=460)
 
