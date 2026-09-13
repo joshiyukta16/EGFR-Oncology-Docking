@@ -1,6 +1,7 @@
 import base64
 import os
 import re
+import json
 import streamlit as st
 import py3Dmol
 import pandas as pd
@@ -18,7 +19,6 @@ from docking_utils import (
     EGFR_POCKET_RESIDUES
 )
 
-# Helper function to render py3Dmol views reliably in Streamlit
 def render_3dmol_view(view_obj, height=350):
     """Wraps py3Dmol object in complete HTML container with 3Dmol.js injected."""
     view_html = view_obj._make_html()
@@ -207,7 +207,6 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     st.subheader("1. Interactive 3D Complex & Surface Inspection")
     
-    # Feature Banner for Tab 1
     st.info(
         "💡 **Interactive Visualizer Features:**\n"
         "* **Bond Angle Measurement**: Click **3 consecutive atoms** to highlight them, draw connecting vectors, and display the calculated angle (`∠ XX.X°`).\n"
@@ -545,7 +544,6 @@ with tab1:
 with tab2:
     st.subheader("🧪 Multi-Ligand Batch Screening Panel")
     
-    # Feature Banner for Tab 2
     st.info(
         "💡 **Batch Screening & Visualizer Features:**\n"
         "* **Parallel Docking Evaluation**: Input up to 3 SMILES candidate molecules to rank their calculated binding energies across the selected EGFR target.\n"
@@ -623,7 +621,6 @@ with tab3:
     
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
     
-    # Explicit Context Banner explaining which ligand is being compared across variants
     st.info(
         f"🔬 **Active Ligand Cross-Variant Profiling**\n\n"
         f"This comparative table evaluates the **currently active ligand selected in Tab 1** across all three EGFR kinase receptor target structures.\n\n"
