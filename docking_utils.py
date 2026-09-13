@@ -138,7 +138,7 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
             
         try:
             AllChem.MMFFOptimizeMoleculeConfs(mol)
-        except Exception as opt_err:
+        except Exception:
             pass
             
         center_x, center_y, center_z = get_receptor_center(receptor_data)
