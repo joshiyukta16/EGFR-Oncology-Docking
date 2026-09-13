@@ -18,6 +18,23 @@ from docking_utils import (
     EGFR_POCKET_RESIDUES
 )
 
+# Helper function to render py3Dmol views reliably in Streamlit
+def render_3dmol_view(view_obj, height=350):
+    """Wraps py3Dmol object in complete HTML container with 3Dmol.js injected."""
+    view_html = view_obj._make_html()
+    full_html = f"""
+    <!Tokenizer html>
+    <html>
+    <head>
+        <script src="https://3dmol.org/build/3Dmol-min.js"></script>
+    </head>
+    <body style="margin:0; padding:0; overflow:hidden;">
+        {view_html}
+    </body>
+    </html>
+    """
+    st.components.v1.html(full_html, height=height, scrolling=False)
+
 # Session State Initialization
 if "sidebar_state" not in st.session_state:
     st.session_state["sidebar_state"] = "collapsed"
@@ -235,7 +252,7 @@ with tab1:
             idx = min(st.session_state["selected_pose_idx"], len(all_poses)-1)
             molblock = all_poses[idx]
             
-            view = py3Dmol.view(width=1100, height=480)
+            view = py3Dmol.view(width="100%", height=480)
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
@@ -329,9 +346,7 @@ with tab1:
             else:
                 view.spin(False)
                 
-            view.render()
-            html_content = view._make_html()
-            st.components.v1.html(html_content, height=490, width=1120)
+            render_3dmol_view(view, height=500)
             
             c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
             with c_btn1:
@@ -388,7 +403,7 @@ with tab1:
         lig_molblock = generate_standalone_ligand_3d(active_smiles)
         
         if lig_molblock:
-            l_view = py3Dmol.view(width=540, height=300)
+            l_view = py3Dmol.view(width="100%", height=320)
             l_bg = "#111111" if st.session_state["ligand_dark"] else "#ffffff"
             l_view.setBackgroundColor(l_bg)
             
@@ -461,9 +476,7 @@ with tab1:
             if st.session_state["ligand_zoom"] != 1.0:
                 l_view.zoom(st.session_state["ligand_zoom"])
                 
-            l_view.render()
-            l_html = l_view._make_html()
-            st.components.v1.html(l_html, height=310, width=550)
+            render_3dmol_view(l_view, height=350)
             
             l_btn1, l_btn2, l_btn3, l_btn4, l_btn5 = st.columns([1, 1, 1, 1, 1])
             with l_btn1:
@@ -580,13 +593,11 @@ with tab2:
         with c_l2:
             cand_block = generate_standalone_ligand_3d(selected_smiles)
             if cand_block:
-                b_view = py3Dmol.view(width=450, height=220)
+                b_view = py3Dmol.view(width="100%", height=220)
                 b_view.addModel(cand_block, "mol")
                 b_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon'}})
                 b_view.zoomTo()
-                b_view.render()
-                b_html = b_view._make_html()
-                st.components.v1.html(b_html, height=230, width=460)
+                render_3dmol_view(b_view, height=250)
 
 with tab3:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
