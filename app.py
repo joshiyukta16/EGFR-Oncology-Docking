@@ -22,7 +22,7 @@ from docking_utils import (
 if "sidebar_state" not in st.session_state:
     st.session_state["sidebar_state"] = "collapsed"
 if "docking_ran" not in st.session_state:
-    st.session_state["docking_ran"] = False
+    st.session_state["docking_ran"] = True  # Set to True so visualizer displays by default
 if "smiles" not in st.session_state:
     st.session_state["smiles"] = "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl"
 
@@ -152,6 +152,7 @@ selected_preset = st.sidebar.selectbox(
 
 if selected_preset != "Custom Input":
     st.session_state["smiles"] = NSCLC_DRUG_PRESETS[selected_preset]
+    st.session_state["docking_ran"] = True
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("PubChem Search")
@@ -165,6 +166,7 @@ if search_query:
     if fetched:
         st.sidebar.success(f"Found structure for '{search_query}'")
         st.session_state["smiles"] = fetched
+        st.session_state["docking_ran"] = True
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
@@ -275,10 +277,7 @@ with tab1:
             function(atom, viewer, event, container) {
                 if (!atom) return;
                 
-                // Toggle Atom Selection for Angle Calculation
                 window.selectedAtoms.push(atom);
-                
-                // Add temporary sphere highlight on clicked atom
                 viewer.addSphere({center: {x: atom.x, y: atom.y, z: atom.z}, radius: 0.4, color: 'yellow'});
                 
                 if (window.selectedAtoms.length === 3) {
@@ -286,21 +285,16 @@ with tab1:
                     var a2 = window.selectedAtoms[1]; // Vertex atom
                     var a3 = window.selectedAtoms[2];
                     
-                    // Vector 1 (a2 -> a1)
                     var v1 = {x: a1.x - a2.x, y: a1.y - a2.y, z: a1.z - a2.z};
-                    // Vector 2 (a2 -> a3)
                     var v2 = {x: a3.x - a2.x, y: a3.y - a2.y, z: a3.z - a2.z};
                     
-                    // Dot product & magnitudes
                     var dot = v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
                     var mag1 = Math.sqrt(v1.x*v1.x + v1.y*v1.y + v1.z*v1.z);
                     var mag2 = Math.sqrt(v2.x*v2.x + v2.y*v2.y + v2.z*v2.z);
                     
-                    // Calculate Angle in Degrees
                     var angleRad = Math.acos(dot / (mag1 * mag2));
                     var angleDeg = (angleRad * (180 / Math.PI)).toFixed(1);
                     
-                    // Display Bond Angle Label at Vertex Atom (a2)
                     viewer.addLabel("∠ " + angleDeg + "°", {
                         position: {x: a2.x, y: a2.y + 0.5, z: a2.z},
                         backgroundColor: '#ff4b4b',
@@ -308,14 +302,11 @@ with tab1:
                         fontSize: 14
                     });
                     
-                    // Draw connecting lines showing the angle
                     viewer.addLine({start: {x: a1.x, y: a1.y, z: a1.z}, end: {x: a2.x, y: a2.y, z: a2.z}, color: 'yellow'});
                     viewer.addLine({start: {x: a2.x, y: a2.y, z: a2.z}, end: {x: a3.x, y: a3.y, z: a3.z}, color: 'yellow'});
                     
-                    // Reset selection array after calculation
                     window.selectedAtoms = [];
                 } else {
-                    // Standard Single Atom Label
                     var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
                     viewer.addLabel(labelText, {
                         position: {x: atom.x, y: atom.y, z: atom.z},
