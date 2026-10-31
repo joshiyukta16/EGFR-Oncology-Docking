@@ -1,6 +1,6 @@
-=streamlit
-rdkit
-pubchempy
-py3dmol
+streamlit
 pandas
 numpy
+pubchempy
+py3dmol
+rdkit 
