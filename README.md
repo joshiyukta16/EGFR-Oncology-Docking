@@ -1,3 +1,12 @@
+# GeomDock: EGFR Oncology Molecular Docking Platform 
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://egfr-oncology-docking-ffmqhdngps5xmmv3wqoeje.streamlit.app)
+
+An interactive web-based molecular docking and chemical informatics platform built with Python, Streamlit, RDKit, and py3Dmol for studying Epidermal Growth Factor Receptor (EGFR) target variants in lung cancer oncology.
+
+### 🌐 Access the Live Global Deployment
+Test the fully interactive platform live in your browser here: **[GeomDock Live App](https://egfr-oncology-docking-ffmqhdngps5xmmv3wqoeje.streamlit.app)** 
+
 # Binding And Beyond Docking Molecular study on EGFR mutations in lung cancer-  
 
 ## 📄 License 
