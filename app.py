@@ -1,21 +1,4 @@
-         
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import base64
+   import base64
 import os
 import re
 import streamlit as st
@@ -59,7 +42,7 @@ if "selected_residues" not in st.session_state:
     st.session_state["selected_residues"] = []
 
 st.set_page_config(
-    page_title="EGFR Molecular Docking Dashboard", 
+    page_title="GeomDock: EGFR Molecular Docking Dashboard", 
     layout="wide",
     initial_sidebar_state=st.session_state["sidebar_state"]
 )
@@ -125,7 +108,7 @@ st.markdown(f"""
     </style>
     <div class="hero-banner">
         <div class="hero-content">
-            <div class="floating-hero-title">EGFR Molecular Docking Dashboard</div>
+            <div class="floating-hero-title">GeomDock: EGFR Molecular Docking Platform</div>
             <div class="hero-subtitle">
                 Interactive structure-based virtual screening platform targeting 
                 EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
@@ -185,7 +168,6 @@ if search_query:
     else:
         st.sidebar.error("Drug not found on PubChem.")
 
-# Callback for Pocket Residues Button
 def set_pocket_residues():
     st.session_state["selected_residues"] = EGFR_POCKET_RESIDUES.get(target_variant, [])
 
@@ -236,7 +218,6 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # 3D COMPLEX VIEWING AREA
     if st.session_state["docking_ran"]:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
@@ -254,15 +235,12 @@ with tab1:
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
-            # Model 0: Ligand Pose
             view.addModel(molblock, "mol")
             view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
             
-            # Model 1: Receptor Structure
             view.addModel(receptor_data, file_ext)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # Surface rendering options
             if surface_style == "Transparent Surface":
                 view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
             elif surface_style == "Solid Surface":
@@ -270,7 +248,6 @@ with tab1:
             elif surface_style == "Electrostatic/VDW Surface":
                 view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
-            # Highlight selected amino acid residues
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = re.sub(r'\D', '', res_label)
@@ -285,7 +262,6 @@ with tab1:
                             {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
                         )
 
-            # Interactive Click Feature: Atom/Bond Highlighting and Labeling
             click_script = """
             function(atom, viewer, event, container) {
                 if (!atom) return;
@@ -306,7 +282,6 @@ with tab1:
             """
             view.setClickable({}, True, click_script)
             
-            # Focus camera on ligand model (Model 0)
             view.zoomTo({'model': 0})
             if st.session_state["complex_zoom"] != 1.0:
                 view.zoom(st.session_state["complex_zoom"])
@@ -393,7 +368,6 @@ with tab1:
             else:
                 l_view.setStyle({}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.2}, 'sphere': {'radius': 0.35}})
             
-            # Interactive Click Handler for Standalone Ligand
             l_click_script = """
             function(atom, viewer) {
                 if(!atom) return;
