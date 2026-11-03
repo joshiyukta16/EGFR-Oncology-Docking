@@ -57,19 +57,12 @@ st.markdown("""
         
         @keyframes highVizPulse {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
-        @keyframes floatingArrow {
-            0% { transform: translateY(0px) scale(1); }
-            50% { transform: translateY(-4px) scale(1.1); }
-            100% { transform: translateY(0px) scale(1); }
-        }
-
-        /* 1. Target ONLY the specific wrapper containers for glowing buttons */
-        .hero-start-btn button,
-        .glowing-run-btn button {
+        /* Target ONLY the Start Docking Analysis button for the glowing pulse & ripple */
+        .hero-start-btn button {
             display: block !important;
             width: 100% !important;
             font-size: 20px !important;
@@ -82,8 +75,7 @@ st.markdown("""
             animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
         }
         
-        .hero-start-btn button:hover,
-        .glowing-run-btn button:hover {
+        .hero-start-btn button:hover {
             background-color: #1d4ed8 !important;
         }
 
@@ -92,18 +84,6 @@ st.markdown("""
             flex-direction: row !important;
             justify-content: center !important;
             gap: 24px;
-        }
-        
-        /* 2. Top-Left Sidebar Collapse/Expand Arrow Floating Animation */
-        [data-testid="collapsedControl"],
-        button[kind="header"] {
-            animation: floatingArrow 1.8s infinite ease-in-out !important;
-            background-color: rgba(37, 99, 235, 0.15) !important;
-            border-radius: 50% !important;
-            z-index: 999999 !important;
-        }
-        [data-testid="collapsedControl"] svg {
-            fill: #2563eb !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -177,7 +157,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Perfectly centered Start Docking button container using balanced column weights
+# Centered Start Docking button container which expands sidebar and triggers smooth scroll
 col_left, col_center, col_right = st.columns([1.2, 1.6, 1.2])
 with col_center:
     st.markdown('<div class="hero-start-btn">', unsafe_allow_html=True)
@@ -281,7 +261,6 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # Ensure poses are generated safely whether residues are selected or not
     if st.session_state["docking_ran"] and receptor_data:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
@@ -299,21 +278,17 @@ with tab1:
             idx = min(st.session_state["selected_pose_idx"], len(all_poses) - 1)
             molblock = all_poses[idx]
             
-            # Initialize viewer safely
             view = py3Dmol.view(width=1100, height=480)
             bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
             view.setBackgroundColor(bg_color)
             
-            # --- MODEL 0: LIGAND POSE ---
             if molblock:
                 view.addModel(molblock, "mol")
                 view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
             
-            # --- MODEL 1: RECEPTOR STRUCTURE ---
             view.addModel(receptor_data, file_ext)
             view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
             
-            # Surface styling
             if surface_style == "Transparent Surface":
                 view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
             elif surface_style == "Solid Surface":
@@ -321,7 +296,6 @@ with tab1:
             elif surface_style == "Electrostatic/VDW Surface":
                 view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
-            # --- INTERACTIVE CLICK SCRIPT FOR ATOM / RESIDUE LABELS ---
             click_script = """
             function(atom, viewer, event, container) {
                 if (!atom) return;
@@ -365,9 +339,7 @@ with tab1:
         st.caption("ℹ️ *The default sample SMILES format provided below represents **Gefitinib**.*")
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
-        st.markdown('<div class="glowing-run-btn">', unsafe_allow_html=True)
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
-        st.markdown('</div>', unsafe_allow_html=True)
 
         if run_btn:
             st.session_state["smiles"] = smiles_input
