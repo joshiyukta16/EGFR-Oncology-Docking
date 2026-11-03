@@ -109,7 +109,7 @@ st.markdown(f"""
     </style>
     <div class="hero-banner">
         <div class="hero-content">
-            <div class="floating-hero-title">GeomDock: EGFR Molecular Docking Platform</div>
+            <div class="floating-hero-title">EpiDock: EGFR Molecular Docking & Virtual Screening Platform</div>
             <div class="hero-subtitle">
                 Interactive structure-based virtual screening platform targeting 
                 EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
