@@ -1,4 +1,4 @@
-import base64
+  import base64
 import os
 import re
 import streamlit as st
@@ -14,6 +14,7 @@ from docking_utils import (
     calculate_lipinski_properties,
     get_receptor_sequence,
     compute_dynamic_binding_score,
+    compute_pose_binding_score,
     NSCLC_DRUG_PRESETS,
     EGFR_POCKET_RESIDUES
 )
@@ -218,108 +219,108 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    if st.session_state["docking_ran"]:
-        all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
+    # Pre-generate poses so the radio selector below can capture state instantly
+    all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3) if (st.session_state["docking_ran"] and receptor_data) else []
+
+    if st.session_state["docking_ran"] and len(all_poses) > 0:
+        st.markdown("##### 🎯 Docked Pose Conformer Selection")
+        pose_choice = st.radio(
+            "Select Conformer Pose:", 
+            ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"],
+            horizontal=True
+        )
+        st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
+
+        idx = st.session_state["selected_pose_idx"]
+        molblock = all_poses[idx]
         
-        if receptor_data and len(all_poses) > 0:
-            p_col1, p_col2 = st.columns([3, 1])
-            with p_col2:
-                st.markdown("##### 🎯 Docked Pose Conformer Selection")
-                pose_choice = st.radio("Select Conformer Pose:", ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"])
-                st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
+        view = py3Dmol.view(width=1100, height=480)
+        bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
+        view.setBackgroundColor(bg_color)
+        
+        view.addModel(molblock, "mol")
+        view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
+        
+        view.addModel(receptor_data, file_ext)
+        view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
+        
+        if surface_style == "Transparent Surface":
+            view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
+        elif surface_style == "Solid Surface":
+            view.addSurface(py3Dmol.VDW, {'opacity': 0.88, 'colorscheme': 'spectrum'}, {'model': 1})
+        elif surface_style == "Electrostatic/VDW Surface":
+            view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
-            idx = min(st.session_state["selected_pose_idx"], len(all_poses)-1)
-            molblock = all_poses[idx]
-            
-            view = py3Dmol.view(width=1100, height=480)
-            bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
-            view.setBackgroundColor(bg_color)
-            
-            view.addModel(molblock, "mol")
-            view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
-            
-            view.addModel(receptor_data, file_ext)
-            view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
-            
-            if surface_style == "Transparent Surface":
-                view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
-            elif surface_style == "Solid Surface":
-                view.addSurface(py3Dmol.VDW, {'opacity': 0.88, 'colorscheme': 'spectrum'}, {'model': 1})
-            elif surface_style == "Electrostatic/VDW Surface":
-                view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
+        if selected_custom_residues:
+            for res_label in selected_custom_residues:
+                res_num = re.sub(r'\D', '', res_label)
+                if res_num:
+                    view.addStyle(
+                        {'model': 1, 'resi': str(res_num)},
+                        {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.3}}
+                    )
+                    view.addResidueLabel(
+                        {'model': 1, 'resi': str(res_num)},
+                        res_label,
+                        {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
+                    )
 
-            if selected_custom_residues:
-                for res_label in selected_custom_residues:
-                    res_num = re.sub(r'\D', '', res_label)
-                    if res_num:
-                        view.addStyle(
-                            {'model': 1, 'resi': str(res_num)},
-                            {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.3}}
-                        )
-                        view.addResidueLabel(
-                            {'model': 1, 'resi': str(res_num)},
-                            res_label,
-                            {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
-                        )
-
-            click_script = """
-            function(atom, viewer, event, container) {
-                if (!atom) return;
-                if (atom.label) {
-                    viewer.removeLabel(atom.label);
-                    delete atom.label;
-                } else {
-                    var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
-                    atom.label = viewer.addLabel(labelText, {
-                        position: {x: atom.x, y: atom.y, z: atom.z},
-                        backgroundColor: 'black',
-                        fontColor: 'white',
-                        backgroundOpacity: 0.8
-                    });
-                }
-                viewer.render();
+        click_script = """
+        function(atom, viewer, event, container) {
+            if (!atom) return;
+            if (atom.label) {
+                viewer.removeLabel(atom.label);
+                delete atom.label;
+            } else {
+                var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
+                atom.label = viewer.addLabel(labelText, {
+                    position: {x: atom.x, y: atom.y, z: atom.z},
+                    backgroundColor: 'black',
+                    fontColor: 'white',
+                    backgroundOpacity: 0.8
+                });
             }
-            """
-            view.setClickable({}, True, click_script)
-            
-            view.zoomTo({'model': 0})
-            if st.session_state["complex_zoom"] != 1.0:
-                view.zoom(st.session_state["complex_zoom"])
+            viewer.render();
+        }
+        """
+        view.setClickable({}, True, click_script)
+        
+        view.zoomTo({'model': 0})
+        if st.session_state["complex_zoom"] != 1.0:
+            view.zoom(st.session_state["complex_zoom"])
 
-            if st.session_state["complex_spin"]:
-                view.spin(True)
-            else:
-                view.spin(False)
-                
-            html_content = view._make_html()
-            st.components.v1.html(html_content, height=490, width=1120)
-            
-            c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
-            with c_btn1:
-                spin_lbl = "Pause Spin ⏸️" if st.session_state["complex_spin"] else "Toggle Spin 🔄"
-                if st.button(spin_lbl, key="c_spin"):
-                    st.session_state["complex_spin"] = not st.session_state["complex_spin"]
-                    st.rerun()
-            with c_btn2:
-                thm_lbl = "Light Mode ☀️" if st.session_state["complex_dark"] else "Dark Mode 🌙"
-                if st.button(thm_lbl, key="c_dark"):
-                    st.session_state["complex_dark"] = not st.session_state["complex_dark"]
-                    st.rerun()
-            with c_btn3:
-                if st.button("Zoom In 🔍+", key="c_zin"):
-                    st.session_state["complex_zoom"] *= 1.2
-                    st.rerun()
-            with c_btn4:
-                if st.button("Zoom Out 🔍-", key="c_zout"):
-                    st.session_state["complex_zoom"] *= 0.8
-                    st.rerun()
-            with c_btn5:
-                if st.button("Reset View 🎯", key="c_reset"):
-                    st.session_state["complex_zoom"] = 1.0
-                    st.session_state["complex_spin"] = False
-                    st.rerun()
+        if st.session_state["complex_spin"]:
+            view.spin(True)
         else:
-            st.error("Error generating 3D complex. Verify structure files and SMILES format.")
+            view.spin(False)
+            
+        html_content = view._make_html()
+        st.components.v1.html(html_content, height=490, width=1120)
+        
+        c_btn1, c_btn2, c_btn3, c_btn4, c_btn5 = st.columns([1.2, 1.2, 1, 1, 1.2])
+        with c_btn1:
+            spin_lbl = "Pause Spin ⏸️" if st.session_state["complex_spin"] else "Toggle Spin 🔄"
+            if st.button(spin_lbl, key="c_spin"):
+                st.session_state["complex_spin"] = not st.session_state["complex_spin"]
+                st.rerun()
+        with c_btn2:
+            thm_lbl = "Light Mode ☀️" if st.session_state["complex_dark"] else "Dark Mode 🌙"
+            if st.button(thm_lbl, key="c_dark"):
+                st.session_state["complex_dark"] = not st.session_state["complex_dark"]
+                st.rerun()
+        with c_btn3:
+            if st.button("Zoom In 🔍+", key="c_zin"):
+                st.session_state["complex_zoom"] *= 1.2
+                st.rerun()
+        with c_btn4:
+            if st.button("Zoom Out 🔍-", key="c_zout"):
+                st.session_state["complex_zoom"] *= 0.8
+                st.rerun()
+        with c_btn5:
+            if st.button("Reset View 🎯", key="c_reset"):
+                st.session_state["complex_zoom"] = 1.0
+                st.session_state["complex_spin"] = False
+                st.rerun()
     else:
         st.info("Visualizer canvas clean. Click 'Run Virtual Screening & Docking' below to execute docking.")
 
@@ -340,9 +341,13 @@ with tab1:
             st.rerun()
 
         if st.session_state["docking_ran"]:
-            selected_score = compute_dynamic_binding_score(active_smiles, target_variant)
+            current_pose_idx = st.session_state.get("selected_pose_idx", 0)
+            selected_score = compute_pose_binding_score(active_smiles, target_variant, current_pose_idx)
             st.markdown("---")
-            st.metric(label=f"Predicted Binding Energy ({target_variant})", value=f"{selected_score} kcal/mol")
+            st.metric(
+                label=f"Predicted Binding Energy ({target_variant} - Pose {current_pose_idx + 1})", 
+                value=f"{selected_score} kcal/mol"
+            )
 
     with l_col2:
         st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Clickable Atoms/Bonds)")
