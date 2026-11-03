@@ -15,7 +15,8 @@ AA_MAP = {
 NSCLC_DRUG_PRESETS = {
     "Gefitinib (1st Gen)": "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl",
     "Erlotinib (1st Gen)": "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C",
-    "Afatinib (2nd Gen)": "CN(C)C/C=C/C(=O)NC1=C(C=C2C(=C1)C(=NC=N2)NC3=CC(=C(C=C4)Cl)F)O[C@H]4CCOC4",
+    # Fixed: previous string had an unclosed ring (invalid SMILES) and swapped F/Cl positions
+    "Afatinib (2nd Gen)": "CN(C)C/C=C/C(=O)NC1=C(C=C2C(=C1)C(=NC=N2)NC3=CC(=C(C=C3)F)Cl)O[C@H]4CCOC4",
     "Osimertinib (3rd Gen)": "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F"
 }
 
