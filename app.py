@@ -67,7 +67,7 @@ st.markdown("""
             100% { transform: translateY(0px) scale(1); }
         }
 
-        /* 1. Target ONLY the Start Docking & Run Virtual Screening buttons */
+        /* 1. Target ONLY the specific wrapper containers for glowing buttons */
         .hero-start-btn button,
         .glowing-run-btn button {
             display: block !important;
@@ -87,12 +87,6 @@ st.markdown("""
             background-color: #1d4ed8 !important;
         }
 
-        /* 2. Force ALL OTHER buttons in the entire app to be completely normal & static */
-        button:not(.hero-start-btn button):not(.glowing-run-btn button) {
-            animation: none !important;
-            box-shadow: none !important;
-        }
-
         /* Center Conformer Selection Radio Buttons horizontally */
         div.row-widget.stRadio > div {
             flex-direction: row !important;
@@ -100,7 +94,7 @@ st.markdown("""
             gap: 24px;
         }
         
-        /* 3. Top-Left Sidebar Collapse/Expand Arrow Floating Animation */
+        /* 2. Top-Left Sidebar Collapse/Expand Arrow Floating Animation */
         [data-testid="collapsedControl"],
         button[kind="header"] {
             animation: floatingArrow 1.8s infinite ease-in-out !important;
