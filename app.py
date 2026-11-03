@@ -57,25 +57,30 @@ st.markdown("""
         
         @keyframes highVizPulse {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            70% { transform: scale(1.06); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
-        /* Enlarge Start Docking Button with Bold Text & Glow */
-        div.stButton > button:first-child {
+        /* 1. Target ONLY the Start Docking Analysis Button (placed inside the hero central column) */
+        .hero-start-btn div.stButton > button:first-child {
             display: block !important;
             width: 100% !important;
-            font-size: 20px !important;
+            font-size: 21px !important;
             font-weight: 800 !important;
-            padding: 14px 24px !important;
+            padding: 14px 28px !important;
             background-color: #2563eb !important;
             color: white !important;
             border-radius: 8px !important;
             border: none !important;
             animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
         }
-        div.stButton > button:first-child:hover {
+        .hero-start-btn div.stButton > button:first-child:hover {
             background-color: #1d4ed8 !important;
+        }
+
+        /* 2. Keep ALL OTHER app buttons completely static (NO animations) */
+        div:not(.hero-start-btn) div.stButton > button {
+            animation: none !important;
         }
 
         /* Center Conformer Selection Radio Buttons horizontally */
@@ -85,7 +90,7 @@ st.markdown("""
             gap: 24px;
         }
         
-        /* Sidebar Collapse/Expand Arrow Glow & Pulse Animation */
+        /* 3. Sidebar Collapse/Expand Arrow Glow & Pulse Animation */
         [data-testid="collapsedControl"] {
             animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
             background-color: #2563eb !important;
@@ -168,13 +173,15 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Perfectly centered button using flanking empty spacer columns
-col_space1, col_btn, col_space2 = st.columns([1.5, 2, 1.5])
-with col_btn:
+# Perfectly centered button container using explicit Streamlit column weights
+col_left, col_center, col_right = st.columns([1.2, 1.6, 1.2])
+with col_center:
+    st.markdown('<div class="hero-start-btn">', unsafe_allow_html=True)
     if st.button("Start Docking Analysis", type="primary"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
@@ -570,4 +577,5 @@ with tab4:
         "The three receptor target structures provided in this platform are pre-processed structures initially downloaded "
         "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
         "specifically for molecular docking purposes."
-    ) 
+    )
+     
