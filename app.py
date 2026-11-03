@@ -217,7 +217,7 @@ with tab1:
         else:
             st.info("Receptor structure file missing from /receptors folder.")
 
-   active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
+    active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
     # Ensure poses are generated safely whether residues are selected or not
     if st.session_state["docking_ran"] and receptor_data:
@@ -262,7 +262,6 @@ with tab1:
             # --- SAFE RESIDUE HIGHLIGHTING ---
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
-                    # Safely extract digits for PDB residue index matching
                     res_num = re.sub(r'\D', '', res_label)
                     if res_num and res_num.isdigit():
                         try:
@@ -522,15 +521,5 @@ with tab3:
 with tab4:
     st.subheader("Target Structure Metadata & Structural Notes")
     st.markdown("""
-    * **EGFR Wild-Type (1M17)**: Represents the active kinase domain conformation bound to 1st-generation TKIs (Erlotinib/Gefitinib).
-    * **EGFR T790M Mutant**: Contains the critical gatekeeper point mutation (Threonine 790 to Methionine), creating steric hindrance causing TKI drug resistance.
-    * **EGFR L858R Mutant**: Features the activating mutation in exon 21 (Leucine 858 to Arginine), causing constitutive kinase domain activation.
-    """)
+    * **EGFR Wild-Type (1M17)**: Represents the active kinase 
     
-    st.markdown("---")
-    st.subheader("📌 Note & Structural Disclaimer")
-    st.info(
-        "The three receptor target structures provided in this platform are pre-processed structures initially downloaded "
-        "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
-        "specifically for molecular docking purposes."
-    ) 
