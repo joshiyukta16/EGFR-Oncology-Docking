@@ -259,23 +259,28 @@ with tab1:
             elif surface_style == "Electrostatic/VDW Surface":
                 view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
-            # --- SAFE RESIDUE HIGHLIGHTING ---
+            # --- ROBUST RESIDUE HIGHLIGHTING & LABELING ---
             if selected_custom_residues:
                 for res_label in selected_custom_residues:
                     res_num = re.sub(r'\D', '', res_label)
                     if res_num and res_num.isdigit():
                         try:
+                            # Highlight specific residue atoms with distinct sticks & color
                             view.addStyle(
-                                {'model': 1, 'resi': str(res_num)},
+                                {'model': 1, 'resi': int(res_num)},
                                 {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.3}}
                             )
                             view.addResidueLabel(
-                                {'model': 1, 'resi': str(res_num)},
-                                res_label,
-                                {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
+                                {'model': 1, 'resi': int(res_num)},
+                                {
+                                    'fontColor': 'black',
+                                    'backgroundColor': 'yellow',
+                                    'backgroundOpacity': 0.85,
+                                    'showBackground': True
+                                }
                             )
                         except Exception as e:
-                            print(f"Skipping invalid residue highlight for {res_label}: {e}")
+                            print(f"Skipping residue highlight for {res_label}: {e}")
 
             click_script = """
             function(atom, viewer, event, container) {
@@ -532,4 +537,5 @@ with tab4:
         "The three receptor target structures provided in this platform are pre-processed structures initially downloaded "
         "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
         "specifically for molecular docking purposes."
-    ) 
+    )
+    
