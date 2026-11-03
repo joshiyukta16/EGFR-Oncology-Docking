@@ -56,20 +56,13 @@ st.markdown("""
         html { scroll-behavior: smooth !important; }
         
         @keyframes highVizPulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.9); }
+            70% { transform: scale(1.04); box-shadow: 0 0 0 18px rgba(37, 99, 235, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
-        @keyframes floatingArrow {
-            0% { transform: translateY(0px) scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            50% { transform: translateY(-4px) scale(1.1); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-            100% { transform: translateY(0px) scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-        }
-
-        /* 1. Target ONLY the Start Docking & Run Virtual Screening buttons for glowing pulse */
-        .hero-start-btn button,
-        .glowing-run-btn button {
+        /* Target ONLY the Start Docking Analysis button for the glowing pulse & ripple */
+        .hero-start-btn button {
             display: block !important;
             width: 100% !important;
             font-size: 20px !important;
@@ -79,11 +72,10 @@ st.markdown("""
             color: white !important;
             border-radius: 8px !important;
             border: none !important;
-            animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
+            animation: highVizPulse 1.6s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
         }
         
-        .hero-start-btn button:hover,
-        .glowing-run-btn button:hover {
+        .hero-start-btn button:hover {
             background-color: #1d4ed8 !important;
         }
 
@@ -92,28 +84,6 @@ st.markdown("""
             flex-direction: row !important;
             justify-content: center !important;
             gap: 24px;
-        }
-        
-        /* 2. Top-Left Sidebar Collapse/Expand Arrow Floating Animation */
-        [data-testid="collapsedControl"],
-        button[kind="header"] {
-            animation: floatingArrow 1.8s infinite ease-in-out !important;
-            background-color: #2563eb !important;
-            border-radius: 50% !important;
-            border: 2px solid #ffffff !important;
-            z-index: 999999 !important;
-        }
-        [data-testid="collapsedControl"] svg {
-            fill: #ffffff !important;
-        }
-
-        /* 3. Force ALL other default buttons and toolbar elements to stay completely static & normal */
-        header button, 
-        .stApp > header button,
-        [data-testid="stHeader"] button {
-            animation: none !important;
-            box-shadow: none !important;
-            transform: none !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -187,7 +157,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Centered Start Docking button container with smooth scroll and auto-open sidebar behavior
+# Centered Start Docking button container
 col_left, col_center, col_right = st.columns([1.2, 1.6, 1.2])
 with col_center:
     st.markdown('<div class="hero-start-btn">', unsafe_allow_html=True)
@@ -196,15 +166,21 @@ with col_center:
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
+# Smooth scroll down + Auto-open sidebar via JavaScript component interaction
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
     st.components.v1.html(
         """
         <script>
+            // 1. Smooth scroll to dashboard main anchor
             window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });
+            
+            // 2. Automatically trigger sidebar open if currently collapsed
             setTimeout(function() {
                 const collapseBtn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
-                if (collapseBtn) { collapseBtn.click(); }
+                if (collapseBtn) {
+                    collapseBtn.click();
+                }
             }, 300);
         </script>
         """,
@@ -376,9 +352,7 @@ with tab1:
         st.caption("ℹ️ *The default sample SMILES format provided below represents **Gefitinib**.*")
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
-        st.markdown('<div class="glowing-run-btn">', unsafe_allow_html=True)
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
-        st.markdown('</div>', unsafe_allow_html=True)
 
         if run_btn:
             st.session_state["smiles"] = smiles_input
