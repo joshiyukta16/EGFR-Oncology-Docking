@@ -87,10 +87,10 @@ st.markdown("""
             background-color: #1d4ed8 !important;
         }
 
-        /* 2. Keep ALL OTHER buttons completely static and normal */
+        /* 2. Force ALL OTHER buttons in the entire app to be completely normal & static */
         button:not(.hero-start-btn button):not(.glowing-run-btn button) {
             animation: none !important;
-            transition: background-color 0.2s ease;
+            box-shadow: none !important;
         }
 
         /* Center Conformer Selection Radio Buttons horizontally */
@@ -183,7 +183,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Perfectly centered Start Docking button using balanced column weights
+# Perfectly centered Start Docking button container using balanced column weights
 col_left, col_center, col_right = st.columns([1.2, 1.6, 1.2])
 with col_center:
     st.markdown('<div class="hero-start-btn">', unsafe_allow_html=True)
