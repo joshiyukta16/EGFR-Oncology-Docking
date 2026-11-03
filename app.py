@@ -57,25 +57,40 @@ st.markdown("""
         
         @keyframes highVizPulse {
             0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            70% { transform: scale(1.06); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
-        /* Enlarge Start Docking Button with Bold Text & Glow */
-        div.stButton > button:first-child {
+        @keyframes floatingArrow {
+            0% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-4px) scale(1.1); }
+            100% { transform: translateY(0px) scale(1); }
+        }
+
+        /* 1. Target ONLY the Start Docking & Run Virtual Screening buttons */
+        .hero-start-btn button,
+        .glowing-run-btn button {
             display: block !important;
             width: 100% !important;
             font-size: 20px !important;
             font-weight: 800 !important;
-            padding: 14px 24px !important;
+            padding: 14px 28px !important;
             background-color: #2563eb !important;
             color: white !important;
             border-radius: 8px !important;
             border: none !important;
             animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
         }
-        div.stButton > button:first-child:hover {
+        
+        .hero-start-btn button:hover,
+        .glowing-run-btn button:hover {
             background-color: #1d4ed8 !important;
+        }
+
+        /* 2. Keep ALL OTHER buttons completely static and normal */
+        button:not(.hero-start-btn button):not(.glowing-run-btn button) {
+            animation: none !important;
+            transition: background-color 0.2s ease;
         }
 
         /* Center Conformer Selection Radio Buttons horizontally */
@@ -85,16 +100,16 @@ st.markdown("""
             gap: 24px;
         }
         
-        /* Sidebar Collapse/Expand Arrow Glow & Pulse Animation */
-        [data-testid="collapsedControl"] {
-            animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
-            background-color: #2563eb !important;
+        /* 3. Top-Left Sidebar Collapse/Expand Arrow Floating Animation */
+        [data-testid="collapsedControl"],
+        button[kind="header"] {
+            animation: floatingArrow 1.8s infinite ease-in-out !important;
+            background-color: rgba(37, 99, 235, 0.15) !important;
             border-radius: 50% !important;
-            border: 2px solid #ffffff !important;
             z-index: 999999 !important;
         }
         [data-testid="collapsedControl"] svg {
-            fill: #ffffff !important;
+            fill: #2563eb !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -168,13 +183,15 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Perfectly centered button using flanking empty spacer columns
-col_space1, col_btn, col_space2 = st.columns([1.5, 2, 1.5])
-with col_btn:
+# Perfectly centered Start Docking button using balanced column weights
+col_left, col_center, col_right = st.columns([1.2, 1.6, 1.2])
+with col_center:
+    st.markdown('<div class="hero-start-btn">', unsafe_allow_html=True)
     if st.button("Start Docking Analysis", type="primary"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
@@ -354,7 +371,10 @@ with tab1:
         st.caption("ℹ️ *The default sample SMILES format provided below represents **Gefitinib**.*")
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
+        st.markdown('<div class="glowing-run-btn">', unsafe_allow_html=True)
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
+        st.markdown('</div>', unsafe_allow_html=True)
+
         if run_btn:
             st.session_state["smiles"] = smiles_input
             st.session_state["docking_ran"] = True
