@@ -259,25 +259,7 @@ with tab1:
             elif surface_style == "Electrostatic/VDW Surface":
                 view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
-            # --- BULLETPROOF INTEGER-CAST RESIDUE HIGHLIGHTING ---
-            if selected_custom_residues:
-                for res_label in selected_custom_residues:
-                    res_num_str = re.sub(r'\D', '', res_label)
-                    if res_num_str:
-                        try:
-                            res_int = int(res_num_str)
-                            view.addStyle(
-                                {'model': 1, 'resi': res_int},
-                                {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.3}}
-                            )
-                            view.addResidueLabel(
-                                {'model': 1, 'resi': res_int},
-                                res_label,
-                                {'fontColor': 'black', 'backgroundColor': 'yellow', 'backgroundOpacity': 0.85}
-                            )
-                        except Exception as e:
-                            print(f"Skipping residue highlight for {res_label}: {e}")
-
+            # --- INTERACTIVE CLICK SCRIPT FOR ATOM / RESIDUE LABELS ---
             click_script = """
             function(atom, viewer, event, container) {
                 if (!atom) return;
@@ -290,7 +272,7 @@ with tab1:
                         position: {x: atom.x, y: atom.y, z: atom.z},
                         backgroundColor: 'black',
                         fontColor: 'white',
-                        backgroundOpacity: 0.8
+                        backgroundOpacity: 0.85
                     });
                 }
                 viewer.render();
