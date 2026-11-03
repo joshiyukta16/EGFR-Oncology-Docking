@@ -50,59 +50,110 @@ st.set_page_config(
 
 # ==========================================
 # ADVANCED CSS STYLING & UI ENHANCEMENTS
+# ------------------------------------------
+# NOTE: Buttons are styled through Streamlit's `key=` feature, which adds a
+# CSS class "st-key-<key>" to the widget container. (Wrapping st.button in
+# st.markdown('<div class=...>') does NOT work, because Streamlit renders the
+# button outside that div.)
 # ==========================================
 st.markdown("""
     <style>
         html { scroll-behavior: smooth !important; }
-        
-        @keyframes highVizPulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-        }
 
+        /* ---------- Float + ripple + glow keyframes ---------- */
+        @keyframes floatBtn {
+            0%   { transform: translateY(0px); }
+            50%  { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes rippleOut {
+            0%   { transform: scale(1);    opacity: 0.75; }
+            100% { transform: scale(1.35, 1.9); opacity: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45), 0 0 18px rgba(96, 165, 250, 0.45); }
+            50%      { box-shadow: 0 10px 34px rgba(37, 99, 235, 0.80), 0 0 38px rgba(96, 165, 250, 0.85); }
+        }
         @keyframes floatingArrow {
-            0% { transform: translateY(0px) scale(1); }
-            50% { transform: translateY(-4px) scale(1.1); }
+            0%   { transform: translateY(0px) scale(1); }
+            50%  { transform: translateY(-4px) scale(1.1); }
             100% { transform: translateY(0px) scale(1); }
         }
 
-        /* 1. Target ONLY the specific wrapper containers for glowing buttons */
-        .hero-start-btn button,
-        .glowing-run-btn button {
-            display: block !important;
+        /* ---------- Shared look for both main action buttons ---------- */
+        .st-key-start_btn,
+        .st-key-run_btn {
+            display: flex !important;
+            justify-content: center !important;
+            animation: floatBtn 3s ease-in-out infinite;
+        }
+        .st-key-start_btn button,
+        .st-key-run_btn button {
+            position: relative !important;
             width: 100% !important;
+            padding: 14px 28px !important;
+            border: none !important;
+            border-radius: 12px !important;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 55%, #3b82f6 100%) !important;
+            color: #ffffff !important;
+            overflow: visible !important;
+            animation: glowPulse 2.2s ease-in-out infinite !important;
+            transition: transform 0.15s ease, filter 0.15s ease !important;
+        }
+        .st-key-start_btn button p,
+        .st-key-run_btn button p {
+            color: #ffffff !important;
             font-size: 20px !important;
             font-weight: 800 !important;
-            padding: 14px 28px !important;
-            background-color: #2563eb !important;
-            color: white !important;
-            border-radius: 8px !important;
-            border: none !important;
-            animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
+            letter-spacing: 0.3px;
         }
-        
-        .hero-start-btn button:hover,
-        .glowing-run-btn button:hover {
-            background-color: #1d4ed8 !important;
+        .st-key-start_btn button:hover,
+        .st-key-run_btn button:hover {
+            filter: brightness(1.12);
+            transform: scale(1.03);
+        }
+        .st-key-start_btn button:active,
+        .st-key-run_btn button:active {
+            transform: scale(0.97);
         }
 
-        /* Center Conformer Selection Radio Buttons horizontally */
+        /* Two staggered ripple rings radiating outward */
+        .st-key-start_btn button::before,
+        .st-key-start_btn button::after,
+        .st-key-run_btn button::before,
+        .st-key-run_btn button::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            border: 2px solid rgba(59, 130, 246, 0.85);
+            pointer-events: none;
+            animation: rippleOut 2.2s ease-out infinite;
+        }
+        .st-key-start_btn button::after,
+        .st-key-run_btn button::after {
+            animation-delay: 1.1s;
+        }
+
+        /* Center the pose-selection radio buttons horizontally */
         div.row-widget.stRadio > div {
             flex-direction: row !important;
             justify-content: center !important;
             gap: 24px;
         }
-        
-        /* 2. Top-Left Sidebar Collapse/Expand Arrow Floating Animation */
+
+        /* Floating sidebar open-arrow (covers old + new Streamlit test-ids) */
         [data-testid="collapsedControl"],
-        button[kind="header"] {
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stExpandSidebarButton"] {
             animation: floatingArrow 1.8s infinite ease-in-out !important;
             background-color: rgba(37, 99, 235, 0.15) !important;
             border-radius: 50% !important;
             z-index: 999999 !important;
         }
-        [data-testid="collapsedControl"] svg {
+        [data-testid="collapsedControl"] svg,
+        [data-testid="stSidebarCollapsedControl"] svg,
+        [data-testid="stExpandSidebarButton"] svg {
             fill: #2563eb !important;
         }
     </style>
@@ -177,20 +228,47 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Perfectly centered Start Docking button container using balanced column weights
-col_left, col_center, col_right = st.columns([1.2, 1.6, 1.2])
+# Centered Start Docking button (middle column + flex-centering CSS)
+col_left, col_center, col_right = st.columns([1, 1.2, 1])
 with col_center:
-    st.markdown('<div class="hero-start-btn">', unsafe_allow_html=True)
-    if st.button("Start Docking Analysis", type="primary"):
+    if st.button("🚀 Start Docking Analysis", type="primary", key="start_btn"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
+# After clicking Start: auto-open the sidebar and scroll to the dashboard.
+# initial_sidebar_state only works on first page load, so we click Streamlit's
+# own "expand sidebar" arrow from JS instead.
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
     st.components.v1.html(
-        "<script>window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });</script>",
+        """
+        <script>
+        (function () {
+            var doc = window.parent.document;
+
+            // 1) Open the sidebar (retry briefly while the page finishes rendering)
+            var tries = 0;
+            var timer = setInterval(function () {
+                tries++;
+                var openBtn = doc.querySelector(
+                    '[data-testid="stExpandSidebarButton"], ' +
+                    '[data-testid="stSidebarCollapsedControl"] button, ' +
+                    '[data-testid="collapsedControl"] button, ' +
+                    '[data-testid="collapsedControl"]'
+                );
+                if (openBtn) { openBtn.click(); }
+                if (openBtn || tries > 25) { clearInterval(timer); }
+            }, 200);
+
+            // 2) Scroll once to the dashboard section
+            setTimeout(function () {
+                var target = doc.getElementById('dashboard-main');
+                if (target) { target.scrollIntoView({ behavior: 'smooth' }); }
+            }, 300);
+        })();
+        </script>
+        """,
         height=0
     )
 
@@ -203,18 +281,24 @@ st.markdown("---")
 st.sidebar.header("Target Configuration")
 target_variant = st.sidebar.selectbox(
     "Select Target EGFR Structure", 
-    ["EGFR Wild-Type (1M17)", "EGFR T790M Mutant", "EGFR L858R Mutant"]
+    ["EGFR Wild-Type (1M17)", "EGFR T790M Mutant", "EGFR L858R Mutant"],
+    key="target_variant"
 )
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("💊 NSCLC TKI Benchmark Presets")
-selected_preset = st.sidebar.selectbox(
-    "Choose FDA-Approved EGFR TKI:",
-    ["Custom Input"] + list(NSCLC_DRUG_PRESETS.keys())
-)
 
-if selected_preset != "Custom Input":
-    st.session_state["smiles"] = NSCLC_DRUG_PRESETS[selected_preset]
+def apply_preset():
+    choice = st.session_state.get("preset_choice", "Custom Input")
+    if choice != "Custom Input":
+        st.session_state["smiles"] = NSCLC_DRUG_PRESETS[choice]
+
+st.sidebar.selectbox(
+    "Choose FDA-Approved EGFR TKI:",
+    ["Custom Input"] + list(NSCLC_DRUG_PRESETS.keys()),
+    key="preset_choice",
+    on_change=apply_preset
+)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("PubChem Search")
@@ -232,7 +316,13 @@ if search_query:
         st.sidebar.error("Drug not found on PubChem.")
 
 def set_pocket_residues():
-    st.session_state["selected_residues"] = EGFR_POCKET_RESIDUES.get(target_variant, [])
+    """Callback: select catalytic-pocket residues that actually exist in the loaded structure."""
+    variant = st.session_state.get("target_variant", "EGFR Wild-Type (1M17)")
+    rec, _ = load_receptor_pdb(variant)
+    seq, _ = get_receptor_sequence(rec) if rec else ([], "")
+    available = {item["label"] for item in seq}
+    wanted = EGFR_POCKET_RESIDUES.get(variant, [])
+    st.session_state["selected_residues"] = [r for r in wanted if r in available]
 
 # ==========================================
 # 3. MAIN DASHBOARD TABS
@@ -250,6 +340,11 @@ with tab1:
     receptor_data, file_ext = load_receptor_pdb(target_variant)
     seq_list, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
     res_options = [item["label"] for item in seq_list]
+
+    # Drop any previously selected residues that don't exist in the newly chosen structure
+    st.session_state["selected_residues"] = [
+        r for r in st.session_state.get("selected_residues", []) if r in res_options
+    ]
 
     c_opt1, c_opt2 = st.columns([1.5, 1])
     with c_opt1:
@@ -321,6 +416,15 @@ with tab1:
             elif surface_style == "Electrostatic/VDW Surface":
                 view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
 
+            # --- Highlight selected residues in the 3D structure ---
+            for res_label in selected_custom_residues:
+                res_num = re.sub(r'\D', '', res_label)
+                if res_num:
+                    view.addStyle(
+                        {'model': 1, 'resi': int(res_num)},
+                        {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.2}}
+                    )
+
             # --- INTERACTIVE CLICK SCRIPT FOR ATOM / RESIDUE LABELS ---
             click_script = """
             function(atom, viewer, event, container) {
@@ -353,7 +457,7 @@ with tab1:
         else:
             st.error("Error generating conformer poses. Verify your SMILES string format.")
     else:
-        st.info("Visualizer canvas clean. Click 'Start Docking Analysis' above to execute docking.")
+        st.info("Visualizer canvas clean. Click 'Run Virtual Screening & Docking' in section 2 below to execute docking.")
 
     st.markdown("---")
 
@@ -365,9 +469,8 @@ with tab1:
         st.caption("ℹ️ *The default sample SMILES format provided below represents **Gefitinib**.*")
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
-        st.markdown('<div class="glowing-run-btn">', unsafe_allow_html=True)
-        run_btn = st.button("Run Virtual Screening & Docking", type="primary")
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Same floating / glowing / ripple style as the Start button (via key="run_btn")
+        run_btn = st.button("⚡ Run Virtual Screening & Docking", type="primary", key="run_btn")
 
         if run_btn:
             st.session_state["smiles"] = smiles_input
@@ -562,11 +665,7 @@ with tab2:
 with tab3:
     st.subheader("Multi-Variant Binding Energy Comparison Table")
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
-    scores = {
-        "EGFR Wild-Type (1M17)": -8.4,
-        "EGFR T790M Mutant": -7.6,
-        "EGFR L858R Mutant": -8.9
-    }
+    scores = get_all_variant_scores(active_smiles)
     df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
     st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
 
