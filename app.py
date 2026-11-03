@@ -521,5 +521,15 @@ with tab3:
 with tab4:
     st.subheader("Target Structure Metadata & Structural Notes")
     st.markdown("""
-    * **EGFR Wild-Type (1M17)**: Represents the active kinase 
+    * **EGFR Wild-Type (1M17)**: Represents the active kinase domain conformation bound to 1st-generation TKIs (Erlotinib/Gefitinib).
+    * **EGFR T790M Mutant**: Contains the critical gatekeeper point mutation (Threonine 790 to Methionine), creating steric hindrance causing TKI drug resistance.
+    * **EGFR L858R Mutant**: Features the activating mutation in exon 21 (Leucine 858 to Arginine), causing constitutive kinase domain activation.
+    """)
     
+    st.markdown("---")
+    st.subheader("📌 Note & Structural Disclaimer")
+    st.info(
+        "The three receptor target structures provided in this platform are pre-processed structures initially downloaded "
+        "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
+        "specifically for molecular docking purposes."
+    ) 
