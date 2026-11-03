@@ -56,8 +56,8 @@ st.markdown("""
         html { scroll-behavior: smooth !important; }
         
         @keyframes highVizPulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.9); }
-            70% { transform: scale(1.04); box-shadow: 0 0 0 18px rgba(37, 99, 235, 0); }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
@@ -72,7 +72,7 @@ st.markdown("""
             color: white !important;
             border-radius: 8px !important;
             border: none !important;
-            animation: highVizPulse 1.6s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
+            animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
         }
         
         .hero-start-btn button:hover {
@@ -157,33 +157,20 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Centered Start Docking button container
+# Centered Start Docking button container which expands sidebar and triggers smooth scroll
 col_left, col_center, col_right = st.columns([1.2, 1.6, 1.2])
 with col_center:
     st.markdown('<div class="hero-start-btn">', unsafe_allow_html=True)
     if st.button("Start Docking Analysis", type="primary"):
+        st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Smooth scroll down + Auto-open sidebar via JavaScript component interaction
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
     st.components.v1.html(
-        """
-        <script>
-            // 1. Smooth scroll to dashboard main anchor
-            window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });
-            
-            // 2. Automatically trigger sidebar open if currently collapsed
-            setTimeout(function() {
-                const collapseBtn = window.parent.document.querySelector('[data-testid="collapsedControl"]');
-                if (collapseBtn) {
-                    collapseBtn.click();
-                }
-            }, 300);
-        </script>
-        """,
+        "<script>window.parent.document.getElementById('dashboard-main').scrollIntoView({ behavior: 'smooth' });</script>",
         height=0
     )
 
