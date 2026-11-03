@@ -67,7 +67,13 @@ st.markdown("""
             100% { transform: translateY(0px) scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
-        /* 1. Target the Start Docking & Run Virtual Screening buttons for glowing pulse */
+        @keyframes floatingToolbarBtn {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* 1. Target ONLY the Start Docking & Run Virtual Screening buttons for glowing pulse */
         .hero-start-btn button,
         .glowing-run-btn button {
             display: block !important;
@@ -105,6 +111,13 @@ st.markdown("""
         }
         [data-testid="collapsedControl"] svg {
             fill: #ffffff !important;
+        }
+
+        /* 3. Keep Top-Right Toolbar / Header buttons floating nicely */
+        header button, 
+        .stApp > header button,
+        [data-testid="stHeader"] button {
+            animation: floatingToolbarBtn 2.2s infinite ease-in-out !important;
         }
     </style>
 """, unsafe_allow_html=True)
