@@ -48,6 +48,40 @@ st.set_page_config(
     initial_sidebar_state=st.session_state["sidebar_state"]
 )
 
+st.markdown("""
+    <style>
+        /* Center and style the Start Docking button */
+        div.stButton > button:first-child {
+            display: block;
+            margin: 0 auto;
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            padding: 12px 28px !important;
+        }
+
+        /* Center the Conformer Selection Radio Buttons horizontally */
+        div.row-widget.stRadio > div {
+            flex-direction: row !important;
+            justify-content: center !important;
+            gap: 20px;
+        }
+        
+        /* Pulse / Ripple Animation for Sidebar Collapse/Expand Arrow */
+        @keyframes sidebarPulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(255, 75, 75, 0.6)); }
+            50% { transform: scale(1.25); filter: drop-shadow(0 0 10px rgba(255, 75, 75, 0.9)); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(255, 75, 75, 0.6)); }
+        }
+        
+        /* Target Streamlit's sidebar collapse control button */
+        [data-testid="collapsedControl"] {
+            animation: sidebarPulse 2s infinite ease-in-out;
+            background-color: rgba(255, 75, 75, 0.15) !important;
+            border-radius: 50% !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 DEFAULT_SMILES = st.session_state["smiles"]
 
 if "complex_spin" not in st.session_state:
@@ -120,7 +154,7 @@ st.markdown(f"""
 
 col_a, col_b, col_c = st.columns([1, 1.2, 1])
 with col_b:
-    if st.button("🚀 Start Docking Analysis", type="primary"):
+    if st.button("Start Docking Analysis", type="primary"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
@@ -224,15 +258,15 @@ with tab1:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
         
         if len(all_poses) > 0:
-            p_col1, p_col2 = st.columns([3, 1])
-            with p_col2:
-                st.markdown("##### 🎯 Docked Pose Conformer Selection")
-                pose_choice = st.radio(
-                    "Select Conformer Pose:", 
-                    ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"],
-                    key="pose_radio_choice"
-                )
-                st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
+            st.markdown("<h5 style='text-align: center; margin-top: 15px;'>🎯 Docked Pose Conformer Selection</h5>", unsafe_allow_html=True)
+            pose_choice = st.radio(
+                "Select Conformer Pose:", 
+                ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"],
+                key="pose_radio_choice",
+                label_visibility="collapsed",
+                horizontal=True
+            )
+            st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
 
             idx = min(st.session_state["selected_pose_idx"], len(all_poses) - 1)
             molblock = all_poses[idx]
@@ -291,7 +325,7 @@ with tab1:
         else:
             st.error("Error generating conformer poses. Verify your SMILES string format.")
     else:
-        st.info("Visualizer canvas clean. Click 'Run Virtual Screening & Docking' below to execute docking.")
+        st.info("Visualizer canvas clean. Click 'Start Docking Analysis' above to execute docking.")
 
     st.markdown("---")
 
