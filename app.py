@@ -45,7 +45,7 @@ if "selected_residues" not in st.session_state:
 st.set_page_config(
     page_title="EpiDock: EGFR Molecular Docking & Virtual Screening Platform", 
     layout="wide",
-    initial_sidebar_state=st.session_state["sidebar_state"] 
+    initial_sidebar_state=st.session_state["sidebar_state"]
 )
 
 DEFAULT_SMILES = st.session_state["smiles"]
@@ -238,9 +238,11 @@ with tab1:
         bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
         view.setBackgroundColor(bg_color)
         
+        # --- MODEL 0: LIGAND POSE ---
         view.addModel(molblock, "mol")
         view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
         
+        # --- MODEL 1: RECEPTOR STRUCTURE ---
         view.addModel(receptor_data, file_ext)
         view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
         
