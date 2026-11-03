@@ -49,18 +49,13 @@ st.set_page_config(
 )
 
 # ==========================================
-# ADVANCED CSS STYLING & UI ENHANCEMENTS
-# ------------------------------------------
-# NOTE: Buttons are styled through Streamlit's `key=` feature, which adds a
-# CSS class "st-key-<key>" to the widget container. (Wrapping st.button in
-# st.markdown('<div class=...>') does NOT work, because Streamlit renders the
-# button outside that div.)
+# CSS: only the hero "Start Docking Analysis" button gets the
+# float / glow / ripple effect (targeted via key="start_btn").
 # ==========================================
 st.markdown("""
     <style>
         html { scroll-behavior: smooth !important; }
 
-        /* ---------- Float + ripple + glow keyframes ---------- */
         @keyframes floatBtn {
             0%   { transform: translateY(0px); }
             50%  { transform: translateY(-8px); }
@@ -80,15 +75,12 @@ st.markdown("""
             100% { transform: translateY(0px) scale(1); }
         }
 
-        /* ---------- Shared look for both main action buttons ---------- */
-        .st-key-start_btn,
-        .st-key-run_btn {
+        .st-key-start_btn {
             display: flex !important;
             justify-content: center !important;
             animation: floatBtn 3s ease-in-out infinite;
         }
-        .st-key-start_btn button,
-        .st-key-run_btn button {
+        .st-key-start_btn button {
             position: relative !important;
             width: 100% !important;
             padding: 14px 28px !important;
@@ -100,28 +92,17 @@ st.markdown("""
             animation: glowPulse 2.2s ease-in-out infinite !important;
             transition: transform 0.15s ease, filter 0.15s ease !important;
         }
-        .st-key-start_btn button p,
-        .st-key-run_btn button p {
+        .st-key-start_btn button p {
             color: #ffffff !important;
             font-size: 20px !important;
             font-weight: 800 !important;
             letter-spacing: 0.3px;
         }
-        .st-key-start_btn button:hover,
-        .st-key-run_btn button:hover {
-            filter: brightness(1.12);
-            transform: scale(1.03);
-        }
-        .st-key-start_btn button:active,
-        .st-key-run_btn button:active {
-            transform: scale(0.97);
-        }
+        .st-key-start_btn button:hover { filter: brightness(1.12); transform: scale(1.03); }
+        .st-key-start_btn button:active { transform: scale(0.97); }
 
-        /* Two staggered ripple rings radiating outward */
         .st-key-start_btn button::before,
-        .st-key-start_btn button::after,
-        .st-key-run_btn button::before,
-        .st-key-run_btn button::after {
+        .st-key-start_btn button::after {
             content: "";
             position: absolute;
             inset: 0;
@@ -130,19 +111,14 @@ st.markdown("""
             pointer-events: none;
             animation: rippleOut 2.2s ease-out infinite;
         }
-        .st-key-start_btn button::after,
-        .st-key-run_btn button::after {
-            animation-delay: 1.1s;
-        }
+        .st-key-start_btn button::after { animation-delay: 1.1s; }
 
-        /* Center the pose-selection radio buttons horizontally */
         div.row-widget.stRadio > div {
             flex-direction: row !important;
             justify-content: center !important;
             gap: 24px;
         }
 
-        /* Floating sidebar open-arrow (covers old + new Streamlit test-ids) */
         [data-testid="collapsedControl"],
         [data-testid="stSidebarCollapsedControl"],
         [data-testid="stExpandSidebarButton"] {
@@ -228,7 +204,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# Centered Start Docking button (middle column + flex-centering CSS)
+# Centered Start Docking button
 col_left, col_center, col_right = st.columns([1, 1.2, 1])
 with col_center:
     if st.button("Start Docking Analysis", type="primary", key="start_btn"):
@@ -237,8 +213,6 @@ with col_center:
         st.rerun()
 
 # After clicking Start: auto-open the sidebar and scroll to the dashboard.
-# initial_sidebar_state only works on first page load, so we click Streamlit's
-# own "expand sidebar" arrow from JS instead.
 if st.session_state.get("scroll_down", False):
     st.session_state["scroll_down"] = False
     st.components.v1.html(
@@ -246,8 +220,6 @@ if st.session_state.get("scroll_down", False):
         <script>
         (function () {
             var doc = window.parent.document;
-
-            // 1) Open the sidebar (retry briefly while the page finishes rendering)
             var tries = 0;
             var timer = setInterval(function () {
                 tries++;
@@ -260,8 +232,6 @@ if st.session_state.get("scroll_down", False):
                 if (openBtn) { openBtn.click(); }
                 if (openBtn || tries > 25) { clearInterval(timer); }
             }, 200);
-
-            // 2) Scroll once to the dashboard section
             setTimeout(function () {
                 var target = doc.getElementById('dashboard-main');
                 if (target) { target.scrollIntoView({ behavior: 'smooth' }); }
@@ -341,7 +311,7 @@ with tab1:
     seq_list, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
     res_options = [item["label"] for item in seq_list]
 
-    # Drop any previously selected residues that don't exist in the newly chosen structure
+    # Drop previously selected residues that don't exist in the newly chosen structure
     st.session_state["selected_residues"] = [
         r for r in st.session_state.get("selected_residues", []) if r in res_options
     ]
@@ -376,88 +346,107 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # Ensure poses are generated safely whether residues are selected or not
+    # ---- Poses (only after docking has been run) ----
+    all_poses = []
     if st.session_state["docking_ran"] and receptor_data:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
-        
-        if len(all_poses) > 0:
-            st.markdown("<h5 style='text-align: center; margin-top: 15px;'>🎯 Docked Pose Conformer Selection</h5>", unsafe_allow_html=True)
-            pose_choice = st.radio(
-                "Select Conformer Pose:", 
-                ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"],
-                key="pose_radio_choice",
-                label_visibility="collapsed",
-                horizontal=True
-            )
-            st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
-
-            idx = min(st.session_state["selected_pose_idx"], len(all_poses) - 1)
-            molblock = all_poses[idx]
-            
-            # Initialize viewer safely
-            view = py3Dmol.view(width=1100, height=480)
-            bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
-            view.setBackgroundColor(bg_color)
-            
-            # --- MODEL 0: LIGAND POSE ---
-            if molblock:
-                view.addModel(molblock, "mol")
-                view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
-            
-            # --- MODEL 1: RECEPTOR STRUCTURE ---
-            view.addModel(receptor_data, file_ext)
-            view.setStyle({'model': 1}, {'cartoon': {'color': 'spectrum'}})
-            
-            # Surface styling
-            if surface_style == "Transparent Surface":
-                view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': 1})
-            elif surface_style == "Solid Surface":
-                view.addSurface(py3Dmol.VDW, {'opacity': 0.88, 'colorscheme': 'spectrum'}, {'model': 1})
-            elif surface_style == "Electrostatic/VDW Surface":
-                view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': 1})
-
-            # --- Highlight selected residues in the 3D structure ---
-            for res_label in selected_custom_residues:
-                res_num = re.sub(r'\D', '', res_label)
-                if res_num:
-                    view.addStyle(
-                        {'model': 1, 'resi': int(res_num)},
-                        {'cartoon': {'color': 'red'}, 'stick': {'colorscheme': 'redCarbon', 'radius': 0.2}}
-                    )
-
-            # --- INTERACTIVE CLICK SCRIPT FOR ATOM / RESIDUE LABELS ---
-            click_script = """
-            function(atom, viewer, event, container) {
-                if (!atom) return;
-                if (atom.label) {
-                    viewer.removeLabel(atom.label);
-                    delete atom.label;
-                } else {
-                    var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
-                    atom.label = viewer.addLabel(labelText, {
-                        position: {x: atom.x, y: atom.y, z: atom.z},
-                        backgroundColor: 'black',
-                        fontColor: 'white',
-                        backgroundOpacity: 0.85
-                    });
-                }
-                viewer.render();
-            }
-            """
-            view.setClickable({}, True, click_script)
-            
-            view.zoomTo({'model': 0})
-            if st.session_state["complex_zoom"] != 1.0:
-                view.zoom(st.session_state["complex_zoom"])
-
-            view.spin(st.session_state["complex_spin"])
-                
-            html_content = view._make_html()
-            st.components.v1.html(html_content, height=490, width=1120)
-        else:
+        if not all_poses:
             st.error("Error generating conformer poses. Verify your SMILES string format.")
-    else:
-        st.info("Visualizer canvas clean. Click 'Run Virtual Screening & Docking' in section 2 below to execute docking.")
+
+    molblock = None
+    if all_poses:
+        st.markdown("<h5 style='text-align: center; margin-top: 15px;'>🎯 Docked Pose Conformer Selection</h5>", unsafe_allow_html=True)
+        pose_choice = st.radio(
+            "Select Conformer Pose:", 
+            ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"],
+            key="pose_radio_choice",
+            label_visibility="collapsed",
+            horizontal=True
+        )
+        st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
+        idx = min(st.session_state["selected_pose_idx"], len(all_poses) - 1)
+        molblock = all_poses[idx]
+    elif not st.session_state["docking_ran"]:
+        st.caption("👁️ Receptor preview. Select residues above to highlight them here; run docking in section 2 to add the ligand.")
+
+    # ---- 3D viewer: ALWAYS shown when the receptor is loaded ----
+    if receptor_data:
+        view = py3Dmol.view(width=1100, height=480)
+        bg_color = "#111111" if st.session_state["complex_dark"] else "#ffffff"
+        view.setBackgroundColor(bg_color)
+
+        # Model indices: ligand (if docked) = 0, receptor = 1; otherwise receptor = 0
+        rec_model = 0
+        if molblock:
+            view.addModel(molblock, "mol")
+            view.setStyle({'model': 0}, {'stick': {'colorscheme': 'greenCarbon', 'radius': 0.25}})
+            rec_model = 1
+
+        view.addModel(receptor_data, file_ext)
+        view.setStyle({'model': rec_model}, {'cartoon': {'color': 'spectrum'}})
+
+        # Surface styling
+        if surface_style == "Transparent Surface":
+            view.addSurface(py3Dmol.VDW, {'opacity': 0.45, 'color': 'white'}, {'model': rec_model})
+        elif surface_style == "Solid Surface":
+            view.addSurface(py3Dmol.VDW, {'opacity': 0.88, 'colorscheme': 'spectrum'}, {'model': rec_model})
+        elif surface_style == "Electrostatic/VDW Surface":
+            view.addSurface(py3Dmol.SAS, {'opacity': 0.65, 'colorscheme': 'electrostatic'}, {'model': rec_model})
+
+        # ---- Highlight the residues picked in the dropdown ----
+        sel_resi = [int(n) for n in selected_nums]
+        if sel_resi:
+            sel = {'model': rec_model, 'resi': sel_resi}
+            # red cartoon + yellow-carbon sticks
+            view.addStyle(sel, {
+                'cartoon': {'color': 'red'},
+                'stick': {'colorscheme': 'yellowCarbon', 'radius': 0.28}
+            })
+            # translucent red "outline" halo around the selected residues
+            view.addSurface(py3Dmol.VDW, {'opacity': 0.35, 'color': 'red'}, sel)
+            # residue name + number labels
+            view.addResLabels(sel, {
+                'fontColor': 'black',
+                'backgroundColor': 'yellow',
+                'backgroundOpacity': 0.85,
+                'fontSize': 12
+            })
+
+        # Click any atom to toggle a label
+        click_script = """
+        function(atom, viewer, event, container) {
+            if (!atom) return;
+            if (atom.label) {
+                viewer.removeLabel(atom.label);
+                delete atom.label;
+            } else {
+                var labelText = (atom.resn ? atom.resn + atom.resi + ":" : "") + atom.elem + " #" + atom.serial;
+                atom.label = viewer.addLabel(labelText, {
+                    position: {x: atom.x, y: atom.y, z: atom.z},
+                    backgroundColor: 'black',
+                    fontColor: 'white',
+                    backgroundOpacity: 0.85
+                });
+            }
+            viewer.render();
+        }
+        """
+        view.setClickable({}, True, click_script)
+
+        # Camera: docked -> ligand, residues selected -> those residues, else whole structure
+        if molblock:
+            view.zoomTo({'model': 0})
+        elif sel_resi:
+            view.zoomTo({'model': rec_model, 'resi': sel_resi})
+        else:
+            view.zoomTo()
+        if st.session_state["complex_zoom"] != 1.0:
+            view.zoom(st.session_state["complex_zoom"])
+
+        view.spin(st.session_state["complex_spin"])
+
+        html_content = view._make_html()
+        st.components.v1.html(html_content, height=490, width=1120)
 
     st.markdown("---")
 
@@ -469,8 +458,8 @@ with tab1:
         st.caption("ℹ️ *The default sample SMILES format provided below represents **Gefitinib**.*")
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
-        # Same floating / glowing / ripple style as the Start button (via key="run_btn")
-        run_btn = st.button("Run Virtual Screening & Docking", type="primary", key="run_btn")
+        # Normal (standard) primary button - no special effects
+        run_btn = st.button("Run Virtual Screening & Docking", type="primary")
 
         if run_btn:
             st.session_state["smiles"] = smiles_input
