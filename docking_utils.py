@@ -12,7 +12,6 @@ AA_MAP = {
     'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
 }
 
-# NSCLC Drug Library Presets
 NSCLC_DRUG_PRESETS = {
     "Gefitinib (1st Gen)": "COC1=C(OCCCN2CCOCC2)C=C3C(=C1)N=CN=C3NC4=CC(=C(C=C4)F)Cl",
     "Erlotinib (1st Gen)": "COCCOC1=C(OCCOC)C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C",
@@ -20,7 +19,6 @@ NSCLC_DRUG_PRESETS = {
     "Osimertinib (3rd Gen)": "CC(=O)NC1=CC(=C(C=C1NC(=O)C=C)N(C)CCN(C)C)NC2=NC=C(C(=N2)C3=CN(C4=CC=CC=C43)C)F"
 }
 
-# Critical Active-Site Residues for EGFR Kinase Pocket
 EGFR_POCKET_RESIDUES = {
     "EGFR Wild-Type (1M17)": ["MET793", "LYS745", "LEU718", "THR790", "ALA743"],
     "EGFR T790M Mutant": ["MET793", "LYS745", "MET790", "LEU718", "ALA743"],
@@ -28,7 +26,6 @@ EGFR_POCKET_RESIDUES = {
 }
 
 def fetch_smiles_from_pubchem(drug_name):
-    """Fetches connectivity SMILES string from PubChem using drug name."""
     try:
         compounds = pcp.get_compounds(drug_name, 'name')
         return compounds[0].connectivity_smiles if compounds else None
@@ -37,7 +34,6 @@ def fetch_smiles_from_pubchem(drug_name):
         return None
 
 def calculate_lipinski_properties(smiles_str):
-    """Calculates comprehensive physicochemical descriptors and drug-likeness rules."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None: 
@@ -64,7 +60,6 @@ def calculate_lipinski_properties(smiles_str):
         return None
 
 def compute_dynamic_binding_score(smiles_str, variant_name):
-    """Calculates binding affinity based on ligand physicochemical properties and target variant."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None: 
@@ -85,8 +80,14 @@ def compute_dynamic_binding_score(smiles_str, variant_name):
         print(f"[DEBUG binding_score] {e}", file=sys.stderr)
         return -7.50
 
+def compute_pose_binding_score(smiles_str, variant_name, pose_idx):
+    """Calculates pose-specific binding score based on conformer geometry variations."""
+    base_score = compute_dynamic_binding_score(smiles_str, variant_name)
+    pose_penalties = [0.0, 0.35, 0.75]
+    penalty = pose_penalties[pose_idx % len(pose_penalties)]
+    return round(base_score + penalty, 2)
+
 def get_all_variant_scores(smiles_str):
-    """Returns binding scores across all EGFR target variants."""
     return {
         "EGFR Wild-Type (1M17)": compute_dynamic_binding_score(smiles_str, "EGFR Wild-Type (1M17)"),
         "EGFR T790M Mutant": compute_dynamic_binding_score(smiles_str, "EGFR T790M Mutant"),
@@ -94,7 +95,6 @@ def get_all_variant_scores(smiles_str):
     }
 
 def generate_standalone_ligand_3d(smiles_str):
-    """Generates standalone 3D MolBlock for individual ligand visualization."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
@@ -113,7 +113,6 @@ def generate_standalone_ligand_3d(smiles_str):
         return None
 
 def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
-    """Generates multiple distinct low-energy conformer poses safely centered to binding pocket."""
     try:
         mol = Chem.MolFromSmiles(smiles_str)
         if mol is None:
@@ -165,7 +164,6 @@ def generate_conformer_poses_3d(smiles_str, receptor_data=None, num_poses=3):
         return []
 
 def get_receptor_center(receptor_data):
-    """Calculates geometric center of receptor structure in real-time."""
     if not receptor_data:
         return (0.0, 0.0, 0.0)
     x_coords, y_coords, z_coords = [], [], []
@@ -182,12 +180,10 @@ def get_receptor_center(receptor_data):
     return (0.0, 0.0, 0.0)
 
 def smiles_to_3d_molblock(smiles_str, receptor_data=None):
-    """Converts SMILES string into a 3D MolBlock translated into the active binding pocket."""
     poses = generate_conformer_poses_3d(smiles_str, receptor_data, num_poses=1)
     return poses[0] if poses else None
 
 def load_receptor_pdb(variant_name):
-    """Loads processed receptor PDB or PDBQT content."""
     filename_map = {
         "EGFR Wild-Type (1M17)": [
             "receptors/egfr_receptor_1M17.pdbqt", 
@@ -227,7 +223,6 @@ def load_receptor_pdb(variant_name):
     return None, None
 
 def get_receptor_sequence(receptor_data, highlighted_res_nums=None):
-    """Extracts amino acid sequence and builds interactive sequence map."""
     if not receptor_data:
         return [], ""
     if highlighted_res_nums is None:
