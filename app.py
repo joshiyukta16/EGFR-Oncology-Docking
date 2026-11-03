@@ -61,11 +61,18 @@ st.markdown("""
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
 
-        /* 1. Target ONLY the Start Docking Analysis Button (placed inside the hero central column) */
-        .hero-start-btn div.stButton > button:first-child {
+        @keyframes floatingArrow {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* 1. Target ONLY the Start Docking Analysis Button & Run Virtual Screening Button for Glow/Pulse */
+        .hero-start-btn div.stButton > button:first-child,
+        .glowing-run-btn div.stButton > button:first-child {
             display: block !important;
             width: 100% !important;
-            font-size: 21px !important;
+            font-size: 20px !important;
             font-weight: 800 !important;
             padding: 14px 28px !important;
             background-color: #2563eb !important;
@@ -74,12 +81,14 @@ st.markdown("""
             border: none !important;
             animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
         }
-        .hero-start-btn div.stButton > button:first-child:hover {
+        
+        .hero-start-btn div.stButton > button:first-child:hover,
+        .glowing-run-btn div.stButton > button:first-child:hover {
             background-color: #1d4ed8 !important;
         }
 
-        /* 2. Keep ALL OTHER app buttons completely static (NO animations) */
-        div:not(.hero-start-btn) div.stButton > button {
+        /* 2. Keep ALL OTHER app buttons completely static (no animation) */
+        div:not(.hero-start-btn):not(.glowing-run-btn) div.stButton > button {
             animation: none !important;
         }
 
@@ -90,9 +99,9 @@ st.markdown("""
             gap: 24px;
         }
         
-        /* 3. Sidebar Collapse/Expand Arrow Glow & Pulse Animation */
+        /* 3. Sidebar Collapse/Expand Floating Arrow Animation */
         [data-testid="collapsedControl"] {
-            animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
+            animation: floatingArrow 2s infinite ease-in-out !important;
             background-color: #2563eb !important;
             border-radius: 50% !important;
             border: 2px solid #ffffff !important;
@@ -361,7 +370,10 @@ with tab1:
         st.caption("ℹ️ *The default sample SMILES format provided below represents **Gefitinib**.*")
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
+        st.markdown('<div class="glowing-run-btn">', unsafe_allow_html=True)
         run_btn = st.button("Run Virtual Screening & Docking", type="primary")
+        st.markdown('</div>', unsafe_allow_html=True)
+
         if run_btn:
             st.session_state["smiles"] = smiles_input
             st.session_state["docking_ran"] = True
@@ -577,5 +589,4 @@ with tab4:
         "The three receptor target structures provided in this platform are pre-processed structures initially downloaded "
         "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
         "specifically for molecular docking purposes."
-    )
-     
+    ) 
