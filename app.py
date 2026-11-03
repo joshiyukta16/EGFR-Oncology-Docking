@@ -43,9 +43,9 @@ if "selected_residues" not in st.session_state:
     st.session_state["selected_residues"] = []
 
 st.set_page_config(
-    page_title="GeomDock: EGFR Molecular Docking Dashboard", 
+    page_title="EpiDock: EGFR Molecular Docking & Virtual Screening Platform", 
     layout="wide",
-    initial_sidebar_state=st.session_state["sidebar_state"]
+    initial_sidebar_state=st.session_state["sidebar_state"] 
 )
 
 DEFAULT_SMILES = st.session_state["smiles"]
