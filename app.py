@@ -62,18 +62,12 @@ st.markdown("""
         }
 
         @keyframes floatingArrow {
-            0% { transform: translateY(0px) scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
-            50% { transform: translateY(-4px) scale(1.1); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-            100% { transform: translateY(0px) scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+            0% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-4px) scale(1.1); }
+            100% { transform: translateY(0px) scale(1); }
         }
 
-        @keyframes floatingToolbarBtn {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-3px); }
-            100% { transform: translateY(0px); }
-        }
-
-        /* 1. Target ONLY the Start Docking & Run Virtual Screening buttons for glowing pulse */
+        /* 1. Target ONLY the specific wrapper containers for glowing buttons */
         .hero-start-btn button,
         .glowing-run-btn button {
             display: block !important;
@@ -100,24 +94,16 @@ st.markdown("""
             gap: 24px;
         }
         
-        /* 2. Top-Left Sidebar Collapse/Expand Arrow Floating & Glowing Animation */
+        /* 2. Top-Left Sidebar Collapse/Expand Arrow Floating Animation */
         [data-testid="collapsedControl"],
         button[kind="header"] {
             animation: floatingArrow 1.8s infinite ease-in-out !important;
-            background-color: #2563eb !important;
+            background-color: rgba(37, 99, 235, 0.15) !important;
             border-radius: 50% !important;
-            border: 2px solid #ffffff !important;
             z-index: 999999 !important;
         }
         [data-testid="collapsedControl"] svg {
-            fill: #ffffff !important;
-        }
-
-        /* 3. Keep Top-Right Toolbar / Header buttons floating nicely */
-        header button, 
-        .stApp > header button,
-        [data-testid="stHeader"] button {
-            animation: floatingToolbarBtn 2.2s infinite ease-in-out !important;
+            fill: #2563eb !important;
         }
     </style>
 """, unsafe_allow_html=True)
