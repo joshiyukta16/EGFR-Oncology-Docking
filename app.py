@@ -231,7 +231,7 @@ st.markdown(f"""
 # Centered Start Docking button (middle column + flex-centering CSS)
 col_left, col_center, col_right = st.columns([1, 1.2, 1])
 with col_center:
-    if st.button("🚀 Start Docking Analysis", type="primary", key="start_btn"):
+    if st.button("Start Docking Analysis", type="primary", key="start_btn"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
@@ -470,7 +470,7 @@ with tab1:
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
         # Same floating / glowing / ripple style as the Start button (via key="run_btn")
-        run_btn = st.button("⚡ Run Virtual Screening & Docking", type="primary", key="run_btn")
+        run_btn = st.button("Run Virtual Screening & Docking", type="primary", key="run_btn")
 
         if run_btn:
             st.session_state["smiles"] = smiles_input
