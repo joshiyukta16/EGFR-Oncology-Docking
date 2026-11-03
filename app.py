@@ -55,23 +55,24 @@ st.markdown("""
     <style>
         html { scroll-behavior: smooth !important; }
         
-        /* Force Centering & Enlarge Start Docking Button */
-        div.stButton {
-            display: flex !important;
-            justify-content: center !important;
-            width: 100% !important;
+        @keyframes highVizPulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8); }
+            70% { transform: scale(1.06); box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
         }
+
+        /* Enlarge Start Docking Button with Bold Text & Glow */
         div.stButton > button:first-child {
             display: block !important;
-            margin: 0 auto !important;
+            width: 100% !important;
             font-size: 20px !important;
             font-weight: 800 !important;
-            padding: 14px 36px !important;
+            padding: 14px 24px !important;
             background-color: #2563eb !important;
             color: white !important;
             border-radius: 8px !important;
-            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
             border: none !important;
+            animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
         }
         div.stButton > button:first-child:hover {
             background-color: #1d4ed8 !important;
@@ -84,23 +85,16 @@ st.markdown("""
             gap: 24px;
         }
         
-        /* High-Visibility Pulse / Glow Animation for Sidebar Expand Arrow */
-        @keyframes highVizPulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
-            70% { transform: scale(1.15); box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-        }
-        
-        /* Target Streamlit's sidebar collapse/expand trigger control button */
+        /* Sidebar Collapse/Expand Arrow Glow & Pulse Animation */
         [data-testid="collapsedControl"] {
             animation: highVizPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1) !important;
             background-color: #2563eb !important;
-            color: white !important;
             border-radius: 50% !important;
+            border: 2px solid #ffffff !important;
             z-index: 999999 !important;
         }
         [data-testid="collapsedControl"] svg {
-            fill: white !important;
+            fill: #ffffff !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -174,8 +168,9 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-col_a, col_b, col_c = st.columns([1, 1.2, 1])
-with col_b:
+# Perfectly centered button using flanking empty spacer columns
+col_space1, col_btn, col_space2 = st.columns([1.5, 2, 1.5])
+with col_btn:
     if st.button("Start Docking Analysis", type="primary"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
@@ -575,5 +570,4 @@ with tab4:
         "The three receptor target structures provided in this platform are pre-processed structures initially downloaded "
         "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
         "specifically for molecular docking purposes."
-    )
-    
+    ) 
