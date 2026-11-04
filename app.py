@@ -227,11 +227,10 @@ if st.session_state.get("scroll_down", False):
 
 st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
 st.warning(
-    "**Limitations — please read.** This is an educational visualization prototype. Ligand conformers are generated "
+    "**Limitations — please read.** This is a three dimesional Molecular visualization prototype. Ligand conformers are generated "
     "from the ligand alone and placed at the receptor centroid for display; **no docking search is performed here**. "
-    "The 'property-based score' is a ligand-only heuristic (arbitrary units) and is **not** a binding affinity or docking "
-    "energy. Real docking results (e.g. AutoDock Vina) can be loaded in the *Docking Results* tab. "
-    "Nothing in this tool should be used for drug-design or clinical decisions.",
+    "The 'property-based score' is a ligand-only heuristic (arbitrary units) and is **not** a binding affinity "
+    "energy. Real docking results (e.g. AutoDock Vina) can be loaded in the *Docking Results* tab. ",
     icon="⚠️"
 )
 st.markdown("---")
