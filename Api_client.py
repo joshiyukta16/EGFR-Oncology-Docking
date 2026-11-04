@@ -69,4 +69,4 @@ def submit_cloud_docking(smiles, target_variant, max_wait_seconds=600, poll_ever
         return None
     except ValueError:
         st.error("The docking backend returned an invalid response.")
-        return None 
+        return None  
