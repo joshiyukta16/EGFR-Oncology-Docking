@@ -4,3 +4,4 @@ numpy
 pubchempy
 py3dmol
 rdkit 
+requests 
