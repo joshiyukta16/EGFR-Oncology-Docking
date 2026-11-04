@@ -663,38 +663,52 @@ with tab2:
                 b_html = b_view._make_html()
                 st.components.v1.html(b_html, height=230, width=460)
 
+TEMPLATE_CSV = (
+    "Ligand,Target,PDB ID,Affinity (kcal/mol),Grid centre (x y z),Grid size (A),Exhaustiveness,Engine / version,Notes\n"
+)
+
 with tab3:
-    st.subheader("Live Cloud Docking Results (AutoDock Vina API)")
-    st.info(
-        "This tab connects directly to your remote docking backend. "
-        "Click the button below to submit the current ligand SMILES and target variant for automated calculation."
+    st.subheader("Docking Results (AutoDock Vina)")
+    source = st.radio(
+        "Result source",
+        ["Upload results CSV (from PyRx / Vina)", "Live cloud docking (needs backend)"],
+        horizontal=True
     )
 
-    if st.button("🚀 Run Live Cloud Docking", type="primary"):
-        with st.spinner("Submitting job to cloud docking cluster..."):
-            # Call your backend API utility function
-            api_results = submit_cloud_docking(active_smiles, target_variant)
-            
-            if api_results:
-                st.session_state["live_docking_data"] = api_results
-                st.success("Docking calculation completed successfully!")
-            else:
-                st.error("Failed to retrieve results from the cloud API.")
-
-    # Display results if available in session state
-    if "live_docking_data" in st.session_state and st.session_state["live_docking_data"]:
-        df_res = pd.DataFrame(st.session_state["live_docking_data"])
-        
-        st.markdown("##### 🏆 Live Affinity Rankings")
-        st.dataframe(
-            df_res.style.highlight_min(subset=["Affinity (kcal/mol)"], color="lightgreen"),
-            use_container_width=True, 
-            hide_index=True
-        )
-        st.caption("Binding energies computed dynamically via cloud infrastructure.")
+    if source.startswith("Upload"):
+        st.download_button("⬇️ Download CSV template", TEMPLATE_CSV,
+                           file_name="docking_results_template.csv", mime="text/csv")
+        up = st.file_uploader("Upload your docking results (CSV)", type=["csv"])
+        if up is not None:
+            try:
+                st.session_state["docking_table"] = pd.read_csv(up)
+            except Exception as e:
+                st.error(f"Could not read the file: {e}")
     else:
-        st.caption("No live docking results fetched yet. Click the button above to start.")
+        st.info("Submits the current ligand SMILES and target to your docking backend "
+                "(address set in DOCKING_API_URL).")
+        if st.button("🚀 Run Live Cloud Docking", type="primary"):
+            with st.spinner("Waiting for the docking job..."):
+                rows = submit_cloud_docking(active_smiles, target_variant)
+            if rows:
+                st.session_state["docking_table"] = pd.DataFrame(rows)
+                st.success("Docking finished.")
 
+    df_res = st.session_state.get("docking_table")
+    if df_res is not None:
+        if "Affinity (kcal/mol)" in df_res.columns:
+            df_res["Affinity (kcal/mol)"] = pd.to_numeric(df_res["Affinity (kcal/mol)"], errors="coerce")
+            st.markdown("##### 🏆 Affinity Rankings")
+            st.dataframe(df_res.style.highlight_min(subset=["Affinity (kcal/mol)"], color="lightgreen"),
+                         use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(df_res, use_container_width=True, hide_index=True)
+        st.caption("Vina scores are approximate ranking values, not exact binding free energies; "
+                   "differences below about 1 kcal/mol should not be over-interpreted. "
+                   "Always report the grid box, exhaustiveness and software version.")
+    else:
+        st.caption("No docking results loaded yet.") 
+        
 with tab4:
     st.subheader("Key Residue Check")
     st.write("Residues found at positions 790 and 858 in each receptor file (standard EGFR numbering), "
