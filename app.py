@@ -663,51 +663,36 @@ with tab2:
                 st.components.v1.html(b_html, height=230, width=460)
 
 with tab3:
-    st.subheader("Docking Results (AutoDock Vina / PyRx)")
+    st.subheader("Live Cloud Docking Results (AutoDock Vina API)")
     st.info(
-        "This tab displays **real docking results that you provide** from your own AutoDock Vina / PyRx runs. "
-        "Nothing here is computed by the app. Upload a CSV, or download the template to fill in. "
-        "Always report the grid box, exhaustiveness and software version used."
+        "This tab connects directly to your remote docking backend. "
+        "Click the button below to submit the current ligand SMILES and target variant for automated calculation."
     )
 
-    template = pd.DataFrame([{
-        "Ligand": "e.g. Gefitinib",
-        "Target": "e.g. EGFR L858R",
-        "PDB ID": "verify on RCSB",
-        "Affinity (kcal/mol)": None,
-        "Grid centre (x, y, z)": "",
-        "Grid size (A)": "",
-        "Exhaustiveness": "",
-        "Engine / version": "",
-        "Notes": ""
-    }])
-    st.download_button(
-        "⬇️ Download CSV template",
-        template.to_csv(index=False),
-        file_name="docking_results_template.csv",
-        mime="text/csv"
-    )
-
-    uploaded = st.file_uploader("Upload your docking results (CSV)", type=["csv"])
-    if uploaded is not None:
-        try:
-            df_res = pd.read_csv(uploaded)
-            required = ["Ligand", "Target", "Affinity (kcal/mol)"]
-            missing = [c for c in required if c not in df_res.columns]
-            if missing:
-                st.error(f"Missing required column(s): {', '.join(missing)}")
+    if st.button("🚀 Run Live Cloud Docking", type="primary"):
+        with st.spinner("Submitting job to cloud docking cluster..."):
+            # Call your backend API utility function
+            api_results = submit_cloud_docking(active_smiles, target_variant)
+            
+            if api_results:
+                st.session_state["live_docking_data"] = api_results
+                st.success("Docking calculation completed successfully!")
             else:
-                df_res["Affinity (kcal/mol)"] = pd.to_numeric(df_res["Affinity (kcal/mol)"], errors="coerce")
-                st.dataframe(
-                    df_res.style.highlight_min(subset=["Affinity (kcal/mol)"], color="lightgreen"),
-                    use_container_width=True, hide_index=True
-                )
-                st.caption("Vina scores are approximate ranking values (typical error of a few kcal/mol), "
-                           "not exact binding free energies. Differences below ~1 kcal/mol should not be over-interpreted.")
-        except Exception as e:
-            st.error(f"Could not read the file: {e}")
+                st.error("Failed to retrieve results from the cloud API.")
+
+    # Display results if available in session state
+    if "live_docking_data" in st.session_state and st.session_state["live_docking_data"]:
+        df_res = pd.DataFrame(st.session_state["live_docking_data"])
+        
+        st.markdown("##### 🏆 Live Affinity Rankings")
+        st.dataframe(
+            df_res.style.highlight_min(subset=["Affinity (kcal/mol)"], color="lightgreen"),
+            use_container_width=True, 
+            hide_index=True
+        )
+        st.caption("Binding energies computed dynamically via cloud infrastructure.")
     else:
-        st.caption("No results loaded yet.")
+        st.caption("No live docking results fetched yet. Click the button above to start.")
 
 with tab4:
     st.subheader("Key Residue Check")
