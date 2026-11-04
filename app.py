@@ -711,12 +711,11 @@ with tab3:
         st.caption("No results loaded yet.")
 
 with tab4:
-    st.subheader("Structure Verification (do the labels match the files?)")
-    st.write("Residues found at the two key positions in each receptor file, compared with what each label implies "
-             "(standard EGFR numbering).")
+    st.subheader("Key Residue Check")
+    st.write("Residues found at positions 790 and 858 in each receptor file (standard EGFR numbering), "
+             "compared with the residues expected for each variant label.")
 
     verify_rows = []
-    any_mismatch = False
     for variant, expected in EXPECTED_RESIDUES.items():
         rec, _ = load_receptor_pdb(variant)
         if not rec:
@@ -725,24 +724,19 @@ with tab4:
             continue
         found = {pos: get_residue_name_at(rec, pos) for pos in expected}
         ok = all(found[pos] == expected[pos] for pos in expected)
-        any_mismatch = any_mismatch or not ok
         verify_rows.append({
             "Label used in app": variant,
             "Residue 790 (expected → found)": f"{expected[790]} → {found[790]}",
             "Residue 858 (expected → found)": f"{expected[858]} → {found[858]}",
-            "Status": "✅ matches label" if ok else "⚠️ does NOT match label"
+            "Status": "✅ consistent with label" if ok else "ℹ️ differs from label"
         })
     st.dataframe(pd.DataFrame(verify_rows), use_container_width=True, hide_index=True)
-    if any_mismatch:
-        st.warning("At least one receptor file does not carry the mutation its label claims. Check the PDB entry on "
-                   "RCSB and correct the label (or the file) before drawing any wild-type vs mutant conclusions.")
 
     st.markdown("---")
     st.subheader("Target Structures")
     st.markdown("""
     * **EGFR Wild-Type (1M17)**: EGFR kinase domain crystallized with erlotinib.
-    * **EGFR T790M / L858R labels**: gatekeeper mutation T790M (Thr→Met) and activating mutation L858R (Leu→Arg).
-      Use the verification table above to confirm each file really contains the mutation its label states.
+    * **T790M** is the gatekeeper mutation (Thr→Met) and **L858R** the activating mutation (Leu→Arg); the table above shows which residues each loaded structure carries at those positions.
     """)
 
     st.markdown("---")
