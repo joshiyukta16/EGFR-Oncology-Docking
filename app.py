@@ -41,6 +41,8 @@ if "selected_pose_idx" not in st.session_state:
     st.session_state["selected_pose_idx"] = 0
 if "selected_residues" not in st.session_state:
     st.session_state["selected_residues"] = []
+if "canvas_nonce" not in st.session_state:
+    st.session_state["canvas_nonce"] = 0
 
 st.set_page_config(
     page_title="EpiDock: EGFR Molecular Docking & Virtual Screening Platform", 
@@ -294,6 +296,15 @@ def set_pocket_residues():
     wanted = EGFR_POCKET_RESIDUES.get(variant, [])
     st.session_state["selected_residues"] = [r for r in wanted if r in available]
 
+def reset_canvas():
+    """Callback: clear selected residues, zoom/spin state and any clicked labels in the 3D canvas."""
+    st.session_state["selected_residues"] = []
+    st.session_state["complex_zoom"] = 1.0
+    st.session_state["complex_spin"] = False
+    # Changing the nonce changes the viewer's HTML, which forces the iframe to reload,
+    # wiping click-labels and any mouse zoom/rotation done inside the viewer.
+    st.session_state["canvas_nonce"] += 1
+
 # ==========================================
 # 3. MAIN DASHBOARD TABS
 # ==========================================
@@ -445,8 +456,18 @@ with tab1:
 
         view.spin(st.session_state["complex_spin"])
 
-        html_content = view._make_html()
+        html_content = view._make_html() + f"<!-- canvas-{st.session_state['canvas_nonce']} -->"
         st.components.v1.html(html_content, height=490, width=1120)
+
+        r_left, r_center, r_right = st.columns([1, 1, 1])
+        with r_center:
+            st.button(
+                "🔄 Reset Canvas",
+                key="reset_canvas_btn",
+                on_click=reset_canvas,
+                use_container_width=True,
+                help="Clears selected residues and labels, and restores the default zoom/view."
+            )
 
     st.markdown("---")
 
