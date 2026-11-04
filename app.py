@@ -52,7 +52,7 @@ st.set_page_config(
 
 # ==========================================
 # CSS: only the hero "Start Docking Analysis" button gets the
-# float / glow / ripple effect (targeted via key="start_btn").
+# floating effect (targeted via key="start_btn").
 # ==========================================
 st.markdown("""
     <style>
@@ -62,14 +62,6 @@ st.markdown("""
             0%   { transform: translateY(0px); }
             50%  { transform: translateY(-8px); }
             100% { transform: translateY(0px); }
-        }
-        @keyframes rippleOut {
-            0%   { transform: scale(1);    opacity: 0.75; }
-            100% { transform: scale(1.35, 1.9); opacity: 0; }
-        }
-        @keyframes glowPulse {
-            0%, 100% { box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45), 0 0 18px rgba(96, 165, 250, 0.45); }
-            50%      { box-shadow: 0 10px 34px rgba(37, 99, 235, 0.80), 0 0 38px rgba(96, 165, 250, 0.85); }
         }
         @keyframes floatingArrow {
             0%   { transform: translateY(0px) scale(1); }
@@ -91,7 +83,7 @@ st.markdown("""
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 55%, #3b82f6 100%) !important;
             color: #ffffff !important;
             overflow: visible !important;
-            animation: glowPulse 2.2s ease-in-out infinite !important;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25) !important;
             transition: transform 0.15s ease, filter 0.15s ease !important;
         }
         .st-key-start_btn button p {
@@ -103,17 +95,6 @@ st.markdown("""
         .st-key-start_btn button:hover { filter: brightness(1.12); transform: scale(1.03); }
         .st-key-start_btn button:active { transform: scale(0.97); }
 
-        .st-key-start_btn button::before,
-        .st-key-start_btn button::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: 12px;
-            border: 2px solid rgba(59, 130, 246, 0.85);
-            pointer-events: none;
-            animation: rippleOut 2.2s ease-out infinite;
-        }
-        .st-key-start_btn button::after { animation-delay: 1.1s; }
 
         div.row-widget.stRadio > div {
             flex-direction: row !important;
