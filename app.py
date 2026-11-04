@@ -8,13 +8,13 @@ from docking_utils import (
     smiles_to_3d_molblock, 
     generate_standalone_ligand_3d,
     generate_conformer_poses_3d,
-    get_all_variant_scores, 
     fetch_smiles_from_pubchem,
     load_receptor_pdb,
     calculate_lipinski_properties,
     get_receptor_sequence,
-    compute_dynamic_binding_score,
-    compute_pose_binding_score,
+    compute_property_score,
+    get_residue_name_at,
+    EXPECTED_RESIDUES,
     NSCLC_DRUG_PRESETS,
     EGFR_POCKET_RESIDUES
 )
@@ -45,7 +45,7 @@ if "canvas_nonce" not in st.session_state:
     st.session_state["canvas_nonce"] = 0
 
 st.set_page_config(
-    page_title="EpiDock: EGFR Molecular Docking & Virtual Screening Platform", 
+    page_title="EpiDock: EGFR Structure Visualization & Ligand Analysis Platform", 
     layout="wide",
     initial_sidebar_state=st.session_state["sidebar_state"]
 )
@@ -178,19 +178,19 @@ st.markdown(f"""
     </style>
     <div class="hero-banner">
         <div class="hero-content">
-            <div class="floating-hero-title">EpiDock: EGFR Molecular Docking & Virtual Screening Platform</div>
+            <div class="floating-hero-title">EpiDock: EGFR Structure Visualization & Ligand Analysis Platform</div>
             <div class="hero-subtitle">
-                Interactive structure-based virtual screening platform targeting 
-                EGFR Wild-Type (1M17), T790M Resistance Mutant (2ITY), and L858R Activating Mutant (9VOX).
+                Interactive 3D visualization of EGFR kinase domain structures, ligand conformer generation and
+                drug-likeness analysis. Real AutoDock Vina results can be loaded in the Docking Results tab.
             </div>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-# Centered Start Docking button
+# Centered Start button
 col_left, col_center, col_right = st.columns([1, 1.2, 1])
 with col_center:
-    if st.button("Start Docking Analysis", type="primary", key="start_btn"):
+    if st.button("Start Analysis", type="primary", key="start_btn"):
         st.session_state["sidebar_state"] = "expanded"
         st.session_state["scroll_down"] = True
         st.rerun()
@@ -226,6 +226,14 @@ if st.session_state.get("scroll_down", False):
     )
 
 st.markdown('<div id="dashboard-main"></div>', unsafe_allow_html=True)
+st.warning(
+    "**Limitations — please read.** This is an educational visualization prototype. Ligand conformers are generated "
+    "from the ligand alone and placed at the receptor centroid for display; **no docking search is performed here**. "
+    "The 'property-based score' is a ligand-only heuristic (arbitrary units) and is **not** a binding affinity or docking "
+    "energy. Real docking results (e.g. AutoDock Vina) can be loaded in the *Docking Results* tab. "
+    "Nothing in this tool should be used for drug-design or clinical decisions.",
+    icon="⚠️"
+)
 st.markdown("---")
 
 # ==========================================
@@ -290,14 +298,14 @@ def reset_canvas():
 # 3. MAIN DASHBOARD TABS
 # ==========================================
 tab1, tab2, tab3, tab4 = st.tabs([
-    "3D Docking Viewer & Analysis", 
-    "Multi-Candidate Virtual Screening", 
-    "Comparative Analysis Table", 
-    "Receptor Info"
+    "3D Structure Viewer & Ligand Analysis", 
+    "Multi-Candidate Property Screening", 
+    "Docking Results (Vina)", 
+    "Receptor Info & Methods"
 ])
 
 with tab1:
-    st.subheader("1. Interactive 3D Complex & Surface Inspection")
+    st.subheader("1. Interactive 3D Receptor & Ligand Visualization")
     
     receptor_data, file_ext = load_receptor_pdb(target_variant)
     seq_list, _ = get_receptor_sequence(receptor_data) if receptor_data else ([], "")
@@ -338,7 +346,7 @@ with tab1:
 
     active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
 
-    # ---- Poses (only after docking has been run) ----
+    # ---- Ligand conformers (illustrative placement; NOT docked poses) ----
     all_poses = []
     if st.session_state["docking_ran"] and receptor_data:
         all_poses = generate_conformer_poses_3d(active_smiles, receptor_data, num_poses=3)
@@ -347,19 +355,21 @@ with tab1:
 
     molblock = None
     if all_poses:
-        st.markdown("<h5 style='text-align: center; margin-top: 15px;'>🎯 Docked Pose Conformer Selection</h5>", unsafe_allow_html=True)
+        st.markdown("<h5 style='text-align: center; margin-top: 15px;'>🧬 Ligand Conformer Selection (illustrative placement)</h5>", unsafe_allow_html=True)
         pose_choice = st.radio(
-            "Select Conformer Pose:", 
-            ["Pose 1 (Lowest Energy)", "Pose 2 (Secondary Conformer)", "Pose 3 (Alternative Conformer)"],
-            key="pose_radio_choice",
+            "Select Conformer:", 
+            ["Conformer 1", "Conformer 2", "Conformer 3"],
+            key="conformer_radio_choice",
             label_visibility="collapsed",
             horizontal=True
         )
-        st.session_state["selected_pose_idx"] = 0 if "Pose 1" in pose_choice else (1 if "Pose 2" in pose_choice else 2)
+        st.caption("Conformers come from the ligand alone (RDKit ETKDG + MMFF) and are centred on the receptor centroid for display only. "
+                   "They are not docked poses.")
+        st.session_state["selected_pose_idx"] = int(pose_choice.split()[-1]) - 1
         idx = min(st.session_state["selected_pose_idx"], len(all_poses) - 1)
         molblock = all_poses[idx]
     elif not st.session_state["docking_ran"]:
-        st.caption("👁️ Receptor preview. Select residues above to highlight them here; run docking in section 2 to add the ligand.")
+        st.caption("👁️ Receptor preview. Select residues above to highlight them here; generate conformers in section 2 to add the ligand.")
 
     # ---- 3D viewer: ALWAYS shown when the receptor is loaded ----
     if receptor_data:
@@ -461,7 +471,7 @@ with tab1:
         smiles_input = st.text_area("SMILES String Format:", value=active_smiles, height=110)
         
         # Normal (standard) primary button - no special effects
-        run_btn = st.button("Run Virtual Screening & Docking", type="primary")
+        run_btn = st.button("Generate Conformers & Estimate Score", type="primary")
 
         if run_btn:
             st.session_state["smiles"] = smiles_input
@@ -469,13 +479,14 @@ with tab1:
             st.rerun()
 
         if st.session_state["docking_ran"]:
-            current_pose_idx = st.session_state.get("selected_pose_idx", 0)
-            selected_score = compute_pose_binding_score(active_smiles, target_variant, current_pose_idx)
+            prop_score = compute_property_score(active_smiles)
             st.markdown("---")
             st.metric(
-                label=f"Predicted Binding Energy ({target_variant} - Pose {current_pose_idx + 1})", 
-                value=f"{selected_score} kcal/mol"
+                label="Property-based score (heuristic, arbitrary units)", 
+                value="N/A" if prop_score is None else f"{prop_score}"
             )
+            st.caption("Ligand-only heuristic (MW, logP, rotatable bonds, H-bond acceptors). It does not use the receptor "
+                       "and is NOT a docking energy or binding affinity.")
 
     with l_col2:
         st.markdown("##### 🧬 Standalone 3D Ligand Conformer Visualizer (Clickable Atoms/Bonds)")
@@ -588,8 +599,8 @@ with tab1:
 # MULTI-LIGAND BATCH SCREENING TAB
 # ==========================================
 with tab2:
-    st.subheader("🧪 Multi-Ligand Batch Screening Panel")
-    st.write("Input multiple SMILES candidate molecules below to perform parallel docking, rank affinity across target mutants, and switch between screens.")
+    st.subheader("🧪 Multi-Ligand Property Screening Panel")
+    st.write("Input up to three SMILES strings to compare drug-likeness descriptors and the ligand-only heuristic score. This tab does not perform docking.")
 
     b_col1, b_col2, b_col3 = st.columns(3)
     with b_col1:
@@ -599,7 +610,7 @@ with tab2:
     with b_col3:
         s3 = st.text_area("Candidate Screen 3 SMILES:", value=st.session_state["s3_val"], key="s3_input", height=90)
 
-    if st.button("⚡ Run Multi-Candidate Virtual Screen", type="primary"):
+    if st.button("⚡ Compare Candidates", type="primary"):
         st.session_state["s1_val"] = s1
         st.session_state["s2_val"] = s2
         st.session_state["s3_val"] = s3
@@ -611,14 +622,13 @@ with tab2:
     for idx, sm in enumerate(batch_list, start=1):
         if sm:
             props = calculate_lipinski_properties(sm)
-            score = compute_dynamic_binding_score(sm, target_variant)
+            score = compute_property_score(sm)
             mw = props["Molecular Weight (g/mol)"] if props else "N/A"
             logp = props["LogP (Lipophilicity)"] if props else "N/A"
             viol = props["Lipinski Violations"] if props else "N/A"
             results_data.append({
                 "Screen ID": f"Candidate Screen {idx}",
-                "Target Variant": target_variant,
-                "Binding Affinity (kcal/mol)": score,
+                "Property Score (heuristic)": score,
                 "MW (g/mol)": mw,
                 "LogP": logp,
                 "Lipinski Violations": viol,
@@ -627,8 +637,8 @@ with tab2:
 
     if results_data:
         df_batch = pd.DataFrame(results_data)
-        st.markdown("##### 🏆 Comparative Candidate Ranking")
-        st.dataframe(df_batch.style.highlight_min(subset=["Binding Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
+        st.markdown("##### 🏆 Property-Score Ranking (heuristic, not binding affinity)")
+        st.dataframe(df_batch.style.highlight_min(subset=["Property Score (heuristic)"], color="lightgreen"), use_container_width=True)
 
         st.markdown("---")
         st.markdown("##### 🔍 Inspect Individual Candidate Screen Structure")
@@ -639,7 +649,7 @@ with tab2:
         c_l1, c_l2 = st.columns([1, 1])
         with c_l1:
             st.info(f"**Viewing {selected_screen}**\n\n**SMILES:** `{selected_smiles}`")
-            if st.button(f"Load {selected_screen} into Main 3D Complex Viewer"):
+            if st.button(f"Load {selected_screen} into Main 3D Viewer"):
                 st.session_state["smiles"] = selected_smiles
                 st.session_state["docking_ran"] = True
                 st.rerun()
@@ -654,24 +664,108 @@ with tab2:
                 st.components.v1.html(b_html, height=230, width=460)
 
 with tab3:
-    st.subheader("Multi-Variant Binding Energy Comparison Table")
-    active_smiles = st.session_state.get("smiles", DEFAULT_SMILES)
-    scores = get_all_variant_scores(active_smiles)
-    df_scores = pd.DataFrame(list(scores.items()), columns=["EGFR Variant Target", "Predicted Affinity (kcal/mol)"])
-    st.dataframe(df_scores.style.highlight_min(subset=["Predicted Affinity (kcal/mol)"], color="lightgreen"), use_container_width=True)
+    st.subheader("Docking Results (AutoDock Vina / PyRx)")
+    st.info(
+        "This tab displays **real docking results that you provide** from your own AutoDock Vina / PyRx runs. "
+        "Nothing here is computed by the app. Upload a CSV, or download the template to fill in. "
+        "Always report the grid box, exhaustiveness and software version used."
+    )
+
+    template = pd.DataFrame([{
+        "Ligand": "e.g. Gefitinib",
+        "Target": "e.g. EGFR L858R",
+        "PDB ID": "verify on RCSB",
+        "Affinity (kcal/mol)": None,
+        "Grid centre (x, y, z)": "",
+        "Grid size (A)": "",
+        "Exhaustiveness": "",
+        "Engine / version": "",
+        "Notes": ""
+    }])
+    st.download_button(
+        "⬇️ Download CSV template",
+        template.to_csv(index=False),
+        file_name="docking_results_template.csv",
+        mime="text/csv"
+    )
+
+    uploaded = st.file_uploader("Upload your docking results (CSV)", type=["csv"])
+    if uploaded is not None:
+        try:
+            df_res = pd.read_csv(uploaded)
+            required = ["Ligand", "Target", "Affinity (kcal/mol)"]
+            missing = [c for c in required if c not in df_res.columns]
+            if missing:
+                st.error(f"Missing required column(s): {', '.join(missing)}")
+            else:
+                df_res["Affinity (kcal/mol)"] = pd.to_numeric(df_res["Affinity (kcal/mol)"], errors="coerce")
+                st.dataframe(
+                    df_res.style.highlight_min(subset=["Affinity (kcal/mol)"], color="lightgreen"),
+                    use_container_width=True, hide_index=True
+                )
+                st.caption("Vina scores are approximate ranking values (typical error of a few kcal/mol), "
+                           "not exact binding free energies. Differences below ~1 kcal/mol should not be over-interpreted.")
+        except Exception as e:
+            st.error(f"Could not read the file: {e}")
+    else:
+        st.caption("No results loaded yet.")
 
 with tab4:
-    st.subheader("Target Structure Metadata & Structural Notes")
-    st.markdown("""
-    * **EGFR Wild-Type (1M17)**: Represents the active kinase domain conformation bound to 1st-generation TKIs (Erlotinib/Gefitinib).
-    * **EGFR T790M Mutant**: Contains the critical gatekeeper point mutation (Threonine 790 to Methionine), creating steric hindrance causing TKI drug resistance.
-    * **EGFR L858R Mutant**: Features the activating mutation in exon 21 (Leucine 858 to Arginine), causing constitutive kinase domain activation.
-    """)
-    
+    st.subheader("Structure Verification (do the labels match the files?)")
+    st.write("Residues found at the two key positions in each receptor file, compared with what each label implies "
+             "(standard EGFR numbering).")
+
+    verify_rows = []
+    any_mismatch = False
+    for variant, expected in EXPECTED_RESIDUES.items():
+        rec, _ = load_receptor_pdb(variant)
+        if not rec:
+            verify_rows.append({"Label used in app": variant, "Residue 790 (expected → found)": "-",
+                                "Residue 858 (expected → found)": "-", "Status": "❌ file not found"})
+            continue
+        found = {pos: get_residue_name_at(rec, pos) for pos in expected}
+        ok = all(found[pos] == expected[pos] for pos in expected)
+        any_mismatch = any_mismatch or not ok
+        verify_rows.append({
+            "Label used in app": variant,
+            "Residue 790 (expected → found)": f"{expected[790]} → {found[790]}",
+            "Residue 858 (expected → found)": f"{expected[858]} → {found[858]}",
+            "Status": "✅ matches label" if ok else "⚠️ does NOT match label"
+        })
+    st.dataframe(pd.DataFrame(verify_rows), use_container_width=True, hide_index=True)
+    if any_mismatch:
+        st.warning("At least one receptor file does not carry the mutation its label claims. Check the PDB entry on "
+                   "RCSB and correct the label (or the file) before drawing any wild-type vs mutant conclusions.")
+
     st.markdown("---")
-    st.subheader("📌 Note & Structural Disclaimer")
+    st.subheader("Target Structures")
+    st.markdown("""
+    * **EGFR Wild-Type (1M17)**: EGFR kinase domain crystallized with erlotinib.
+    * **EGFR T790M / L858R labels**: gatekeeper mutation T790M (Thr→Met) and activating mutation L858R (Leu→Arg).
+      Use the verification table above to confirm each file really contains the mutation its label states.
+    """)
+
+    st.markdown("---")
+    st.subheader("Methods & Limitations")
+    st.markdown("""
+    * **Conformers:** generated with RDKit (ETKDG embedding, MMFF94 optimisation) from the ligand SMILES alone.
+    * **Placement:** conformers are translated to the receptor centroid purely for display. No docking search or scoring against the receptor is done in this app.
+    * **Property score:** a linear heuristic of ligand descriptors, in arbitrary units; it is not a binding energy.
+    * **Docking results:** come only from files you upload (e.g. AutoDock Vina through PyRx).
+    * **Not for clinical use:** do not use this tool for treatment or drug-design decisions.
+    """)
+
+    st.markdown("---")
+    st.subheader("Data Sources & Software")
+    st.markdown("""
+    * Protein structures: RCSB Protein Data Bank (cite each PDB entry and its authors).
+    * Ligand structures and names: PubChem (NCBI).
+    * Cheminformatics: RDKit. Visualization: py3Dmol / 3Dmol.js. Interface: Streamlit.
+    * Docking (outside this app): AutoDock Vina and PyRx. Please cite the original papers (Trott & Olson 2010; Dallakyan & Olson 2015) after verifying the details yourself.
+    """)
+
     st.info(
-        "The three receptor target structures provided in this platform are pre-processed structures initially downloaded "
-        "from the Protein Data Bank (PDB). These target structures have been cleaned, optimized, and pre-processed "
-        "specifically for molecular docking purposes."
+        "The receptor structures are pre-processed copies of PDB entries (waters and heteroatoms removed, "
+        "hydrogens/charges added for docking). Preparation steps can change protonation states and should be "
+        "documented alongside any results."
     ) 
