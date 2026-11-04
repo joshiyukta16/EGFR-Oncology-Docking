@@ -60,40 +60,46 @@ def calculate_lipinski_properties(smiles_str):
         print(f"[DEBUG Lipinski] {e}", file=sys.stderr)
         return None
 
-def compute_dynamic_binding_score(smiles_str, variant_name):
+def compute_property_score(smiles_str):
+    """
+    HEURISTIC, LIGAND-ONLY score (arbitrary units) built from molecular weight, logP,
+    rotatable bonds and H-bond acceptors. It does NOT use the receptor structure and is
+    NOT a docking energy or a binding affinity. Use it only for rough relative ranking
+    of ligand properties. Real affinities must come from a docking engine (e.g. AutoDock Vina).
+    """
     try:
         mol = Chem.MolFromSmiles(smiles_str)
-        if mol is None: 
-            return -7.50
+        if mol is None:
+            return None
         mw = Descriptors.MolWt(mol)
         logp = Crippen.MolLogP(mol)
         rot_bonds = Lipinski.NumRotatableBonds(mol)
         hba = Lipinski.NumHAcceptors(mol)
-        
-        base_score = -0.012 * mw - 0.35 * logp + 0.15 * rot_bonds - 0.22 * hba
-        offsets = {
-            "EGFR Wild-Type (1M17)": -2.1,
-            "EGFR T790M Mutant": -0.8,
-            "EGFR L858R Mutant": -2.5
-        }
-        return round(base_score + offsets.get(variant_name, -1.5), 2)
+        score = -0.012 * mw - 0.35 * logp + 0.15 * rot_bonds - 0.22 * hba
+        return round(score, 2)
     except Exception as e:
-        print(f"[DEBUG binding_score] {e}", file=sys.stderr)
-        return -7.50
+        print(f"[DEBUG property_score] {e}", file=sys.stderr)
+        return None
 
-def compute_pose_binding_score(smiles_str, variant_name, pose_idx):
-    """Calculates pose-specific binding score based on conformer geometry variations."""
-    base_score = compute_dynamic_binding_score(smiles_str, variant_name)
-    pose_penalties = [0.0, 0.35, 0.75]
-    penalty = pose_penalties[pose_idx % len(pose_penalties)]
-    return round(base_score + penalty, 2)
+def get_residue_name_at(receptor_data, res_number):
+    """Returns the 3-letter residue name found at a given residue number (first match), or None."""
+    if not receptor_data:
+        return None
+    target = str(res_number)
+    for line in receptor_data.splitlines():
+        if line.startswith("ATOM") or line.startswith("HETATM"):
+            if line[22:26].strip() == target:
+                name = line[17:20].strip()
+                if name in AA_MAP:
+                    return name
+    return None
 
-def get_all_variant_scores(smiles_str):
-    return {
-        "EGFR Wild-Type (1M17)": compute_dynamic_binding_score(smiles_str, "EGFR Wild-Type (1M17)"),
-        "EGFR T790M Mutant": compute_dynamic_binding_score(smiles_str, "EGFR T790M Mutant"),
-        "EGFR L858R Mutant": compute_dynamic_binding_score(smiles_str, "EGFR L858R Mutant")
-    }
+# What each labelled variant SHOULD contain at the two key positions (standard EGFR numbering)
+EXPECTED_RESIDUES = {
+    "EGFR Wild-Type (1M17)": {790: "THR", 858: "LEU"},
+    "EGFR T790M Mutant": {790: "MET", 858: "LEU"},
+    "EGFR L858R Mutant": {790: "THR", 858: "ARG"},
+}
 
 def generate_standalone_ligand_3d(smiles_str):
     try:
